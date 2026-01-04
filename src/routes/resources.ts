@@ -40,7 +40,7 @@ router.get('/:id', async (c) => {
     const result = await c.env.DB.prepare('SELECT * FROM subject_resources WHERE id = ?').bind(id).first()
     if (!result) return c.json({ success: false, message: 'Resource not found' }, 404)
 
-    const hasAccess = await checkResourceAccess(c, id, result.price_in_inr as number)
+    const hasAccess = await checkResourceAccess(c, id, result.price_in_paise as number)
     
     if (!hasAccess) {
       result.external_url = null
@@ -61,13 +61,13 @@ router.get('/:id', async (c) => {
 router.post('/', async (c) => {
   try {
     const body = await c.req.json()
-    const { subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, content_type, r2_object_key, rich_text_content } = body
+    const { subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_paise, free_after_date, valid_from, submission_deadline, academic_year, content_type, r2_object_key, rich_text_content, sequence_number, exam_type, exam_year } = body
 
     if (!subject_id || !category || !title) {
       return c.json({ success: false, message: 'subject_id, category, and title are required' }, 400)
     }
 
-    const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE']
+    const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE', 'SYLLABUS', 'REFERENCE_BOOK']
     if (!validCategories.includes(category)) {
       return c.json({ success: false, message: `Category must be one of: ${validCategories.join(', ')}` }, 400)
     }
@@ -75,14 +75,15 @@ router.post('/', async (c) => {
     const id = crypto.randomUUID()
     await c.env.DB.prepare(`
       INSERT INTO subject_resources 
-        (id, subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, content_type, r2_object_key, rich_text_content, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        (id, subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_paise, free_after_date, valid_from, submission_deadline, academic_year, content_type, r2_object_key, rich_text_content, sequence_number, exam_type, exam_year, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).bind(
       id, subject_id, chapter_id || null, category, title, external_url || null, thumbnail_url || null, description || null,
-      is_public ? 1 : 0, price_in_inr || 0,
+      is_public ? 1 : 0, price_in_paise || 0,
       free_after_date || null, valid_from || null,
       submission_deadline || null, academic_year || null,
-      content_type || 'external_url', r2_object_key || null, rich_text_content || null
+      content_type || 'external_url', r2_object_key || null, rich_text_content || null,
+      sequence_number || 0, exam_type || null, exam_year || null
     ).run()
 
     return c.json({ success: true, message: 'Resource created', data: { id } })
@@ -96,9 +97,9 @@ router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
-    const { chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, is_active, content_type, r2_object_key, rich_text_content } = body
+    const { chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_paise, free_after_date, valid_from, submission_deadline, academic_year, is_active, content_type, r2_object_key, rich_text_content, sequence_number, exam_type, exam_year } = body
 
-    const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE']
+    const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE', 'SYLLABUS', 'REFERENCE_BOOK']
     if (category && !validCategories.includes(category)) {
       return c.json({ success: false, message: `Category must be one of: ${validCategories.join(', ')}` }, 400)
     }
@@ -111,9 +112,9 @@ router.patch('/:id', async (c) => {
         try {
           if (oldKey.startsWith('http')) {
             const urlObj = new URL(oldKey);
-            oldKey = urlObj.pathname.replace(/^\//, ''); // Strip base URL and leading slash
+            oldKey = urlObj.pathname.replace(/^\//, '');
           } else {
-            oldKey = oldKey.replace(/^\//, ''); // Strip leading slash just in case
+            oldKey = oldKey.replace(/^\//, '');
           }
           
           if (oldKey) {
@@ -129,18 +130,20 @@ router.patch('/:id', async (c) => {
       UPDATE subject_resources SET
         chapter_id = COALESCE(?, chapter_id), category = COALESCE(?, category), title = COALESCE(?, title),
         external_url = COALESCE(?, external_url), thumbnail_url = COALESCE(?, thumbnail_url), description = COALESCE(?, description),
-        is_public = COALESCE(?, is_public), price_in_inr = COALESCE(?, price_in_inr),
+        is_public = COALESCE(?, is_public), price_in_paise = COALESCE(?, price_in_paise),
         free_after_date = COALESCE(?, free_after_date), valid_from = COALESCE(?, valid_from), submission_deadline = COALESCE(?, submission_deadline), academic_year = COALESCE(?, academic_year),
         content_type = COALESCE(?, content_type), r2_object_key = COALESCE(?, r2_object_key), rich_text_content = COALESCE(?, rich_text_content),
+        sequence_number = COALESCE(?, sequence_number), exam_type = COALESCE(?, exam_type), exam_year = COALESCE(?, exam_year),
         is_active = COALESCE(?, is_active)
       WHERE id = ?
     `).bind(
       chapter_id ?? null, category ?? null, title ?? null,
       external_url ?? null, thumbnail_url ?? null, description ?? null,
-      is_public !== undefined ? (is_public ? 1 : 0) : null, price_in_inr ?? null,
+      is_public !== undefined ? (is_public ? 1 : 0) : null, price_in_paise ?? null,
       free_after_date ?? null, valid_from ?? null,
       submission_deadline ?? null, academic_year ?? null,
       content_type ?? null, r2_object_key ?? null, rich_text_content ?? null,
+      sequence_number ?? null, exam_type ?? null, exam_year ?? null,
       is_active ?? null, id
     ).run()
 

@@ -164,7 +164,7 @@ app.get('/api/proxy-resource', async (c) => {
 
     // Fetch the external URL from the database
     const resource = await c.env.DB.prepare(
-      'SELECT external_url, price_in_inr FROM subject_resources WHERE id = ?'
+      'SELECT external_url, price_in_paise FROM subject_resources WHERE id = ?'
     ).bind(resourceId).first()
 
     if (!resource || !resource.external_url) {
@@ -172,7 +172,7 @@ app.get('/api/proxy-resource', async (c) => {
     }
 
     const { checkResourceAccess } = await import('./utils/access')
-    const hasAccess = await checkResourceAccess(c, resourceId, resource.price_in_inr as number)
+    const hasAccess = await checkResourceAccess(c, resourceId, resource.price_in_paise as number)
 
     if (!hasAccess) {
       return c.json({ success: false, message: '403 Forbidden: Resource is locked.' }, 403)

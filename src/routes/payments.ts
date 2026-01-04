@@ -33,16 +33,16 @@ router.post('/create-order', async (c) => {
     }
 
     // Verify resource
-    const resource = await c.env.DB.prepare('SELECT price_in_inr FROM subject_resources WHERE id = ?').bind(resource_id).first()
+    const resource = await c.env.DB.prepare('SELECT price_in_paise FROM subject_resources WHERE id = ?').bind(resource_id).first()
     if (!resource) {
       return c.json({ success: false, message: 'Resource not found' }, 404)
     }
 
-    if (!resource.price_in_inr || resource.price_in_inr <= 0) {
+    if (!resource.price_in_paise || resource.price_in_paise <= 0) {
       return c.json({ success: false, message: 'Resource is free' }, 400)
     }
 
-    const amountInPaise = Math.round((resource.price_in_inr as number) * 100)
+    const amountInPaise = resource.price_in_paise as number
 
     // Call Razorpay API to create order
     const authHeaderRaw = btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`)
@@ -78,7 +78,7 @@ router.post('/create-order', async (c) => {
     await c.env.DB.prepare(`
       INSERT INTO purchases (id, student_id, resource_id, amount, amount_in_paise, currency, status, gateway_order_id)
       VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)
-    `).bind(purchaseId, user.id, resource_id, resource.price_in_inr, amountInPaise, 'INR', order.id).run()
+    `).bind(purchaseId, user.id, resource_id, resource.price_in_paise, amountInPaise, 'INR', order.id).run()
 
     return c.json({ success: true, order_id: order.id, amount: amountInPaise, key_id: c.env.RAZORPAY_KEY_ID })
   } catch (error: any) {

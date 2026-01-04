@@ -7,7 +7,7 @@ const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 router.get('/', async (c) => {
   try {
     const subject_id = c.req.query('subject_id')
-    
+
     if (subject_id) {
       const { results } = await c.env.DB.prepare(
         'SELECT * FROM chapters WHERE subject_id = ? ORDER BY chapter_number ASC'
@@ -28,7 +28,7 @@ router.get('/', async (c) => {
 router.post('/', async (c) => {
   try {
     const body = await c.req.json()
-    const { subject_id, chapter_number, title, unit_name } = body
+    const { subject_id, chapter_number, title, unit_name, unit_number, price_in_paise } = body
 
     if (!subject_id || chapter_number === undefined || !title) {
       return c.json({ success: false, message: 'subject_id, chapter_number, and title are required' }, 400)
@@ -36,11 +36,11 @@ router.post('/', async (c) => {
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(`
-      INSERT INTO chapters 
-        (id, subject_id, chapter_number, title, unit_name, is_active)
-      VALUES (?, ?, ?, ?, ?, 1)
+      INSERT INTO chapters
+        (id, subject_id, chapter_number, title, unit_name, unit_number, price_in_paise, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
     `).bind(
-      id, subject_id, chapter_number, title, unit_name || null
+      id, subject_id, chapter_number, title, unit_name || null, unit_number || null, price_in_paise || 0
     ).run()
 
     return c.json({ success: true, message: 'Chapter created', data: { id } })
@@ -57,17 +57,19 @@ router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
-    const { chapter_number, title, unit_name, is_active } = body
+    const { chapter_number, title, unit_name, unit_number, is_active, price_in_paise } = body
 
     await c.env.DB.prepare(`
       UPDATE chapters SET
         chapter_number = COALESCE(?, chapter_number),
         title = COALESCE(?, title),
         unit_name = ?,
+        unit_number = COALESCE(?, unit_number),
+        price_in_paise = COALESCE(?, price_in_paise),
         is_active = COALESCE(?, is_active)
       WHERE id = ?
     `).bind(
-      chapter_number ?? null, title ?? null, unit_name || null, is_active ?? null, id
+      chapter_number ?? null, title ?? null, unit_name || null, unit_number ?? null, price_in_paise ?? null, is_active ?? null, id
     ).run()
 
     return c.json({ success: true, message: 'Chapter updated' })

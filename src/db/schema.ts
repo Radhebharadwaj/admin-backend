@@ -71,6 +71,7 @@ export const chapters = sqliteTable('chapters', {
     title: text('title').notNull(),
     isPublished: integer('is_published').default(0),
     isActive: integer('is_active').default(1),
+    priceInPaise: integer('price_in_paise').default(0),
     createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
     updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
     deletedAt: text('deleted_at'),
