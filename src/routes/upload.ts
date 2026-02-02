@@ -4,12 +4,13 @@ import { Bindings, Variables } from '../index'
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024 // 1MB
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024 // 20MB
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'])
+const ALLOWED_DOCUMENT_TYPES = new Set(['application/pdf'])
 
-// POST /api/upload/image
-// Accepts: FormData with a "file" field and an optional "folder" field
-// Returns: { success: true, data: { url: "logos/uuid.ext" } }
-router.post('/image', async (c) => {
+// POST /api/upload/media
+// Accepts: FormData with file, uploadType, entityType, universitySlug, courseSlug, subjectCode, filePrefix
+router.post('/media', async (c) => {
   try {
     const r2 = c.env.BUCKET
     if (!r2) {
@@ -18,38 +19,51 @@ router.post('/image', async (c) => {
 
     const formData = await c.req.parseBody()
     const file = formData.file as File | undefined
-    const folder = (formData.folder as string) || 'uploads'
+    const uploadType = formData.uploadType as string // 'image' | 'document'
+    const entityType = formData.entityType as string
+    const universitySlug = formData.universitySlug as string
+    const courseSlug = formData.courseSlug as string | undefined
+    const subjectCode = formData.subjectCode as string | undefined
+    const filePrefix = formData.filePrefix as string
 
     if (!file || file.size === 0) {
       return c.json({ success: false, message: 'No file provided.' }, 400)
     }
-
-    // Validate size
-    if (file.size > MAX_IMAGE_SIZE) {
-      return c.json({ success: false, message: `File too large. Maximum size is ${MAX_IMAGE_SIZE / 1024 / 1024}MB.` }, 413)
+    if (!uploadType || !entityType || !universitySlug) {
+      return c.json({ success: false, message: 'Missing required relational context parameters.' }, 400)
     }
 
-    // Validate MIME type
     const mimeType = file.type?.toLowerCase() || ''
-    if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
-      return c.json({
-        success: false,
-        message: `Unsupported file type "${mimeType}". Allowed: ${[...ALLOWED_IMAGE_TYPES].join(', ')}`
-      }, 415)
+    let ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
+
+    if (uploadType === 'image') {
+      if (file.size > MAX_IMAGE_SIZE) return c.json({ success: false, message: `Image too large. Max ${MAX_IMAGE_SIZE / 1024 / 1024}MB.` }, 413)
+      if (!ALLOWED_IMAGE_TYPES.has(mimeType)) return c.json({ success: false, message: `Unsupported image type "${mimeType}".` }, 415)
+      if (ext === 'bin' && mimeType === 'image/jpeg') ext = 'jpg';
+      if (ext === 'bin' && mimeType === 'image/png') ext = 'png';
+      if (ext === 'bin' && mimeType === 'image/webp') ext = 'webp';
+      if (ext === 'bin' && mimeType === 'image/svg+xml') ext = 'svg';
+    } else if (uploadType === 'document') {
+      if (file.size > MAX_DOCUMENT_SIZE) return c.json({ success: false, message: `Document too large. Max ${MAX_DOCUMENT_SIZE / 1024 / 1024}MB.` }, 413)
+      if (!ALLOWED_DOCUMENT_TYPES.has(mimeType)) return c.json({ success: false, message: `Unsupported document type "${mimeType}". Only PDF is allowed.` }, 415)
+      if (ext === 'bin' && mimeType === 'application/pdf') ext = 'pdf';
+    } else {
+      return c.json({ success: false, message: 'Invalid uploadType.' }, 400)
     }
 
-    // Validate extension
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'svg'])
-    if (!ext || !allowedExtensions.has(ext)) {
-      return c.json({ success: false, message: `Invalid file extension ".${ext}".` }, 415)
-    }
+    // Build the relational path dynamically
+    let pathParts = ['uploads', entityType, universitySlug]
+    if (courseSlug) pathParts.push(courseSlug)
+    if (subjectCode) pathParts.push(subjectCode)
+    if (uploadType === 'document') pathParts.push('documents')
+    
+    // Sanitize parts
+    const safePath = pathParts.map(p => p.replace(/[^a-zA-Z0-9_-]/g, '')).join('/')
+    const safePrefix = filePrefix ? filePrefix.replace(/[^a-zA-Z0-9_-]/g, '') : 'file'
 
-    // Sanitize folder name
-    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '_')
-
-    // Build object key: folder/timestamp-uuid.ext
-    const objectKey = `${safeFolder}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+    // Final key
+    const fileName = `${safePrefix}-${Date.now()}`
+    const objectKey = `${safePath}/${fileName}.${ext}`
 
     // Upload to R2
     const teamMember = c.get('teamMember')
