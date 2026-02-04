@@ -15,9 +15,9 @@ const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const universitySchema = z.object({
   name: z.string().max(150),
   slug: z.string().max(150).regex(/^[a-z0-9-]+$/, "Invalid slug format. Use only lowercase letters, numbers, and hyphens."),
-  website_url: z.string().url().max(255).optional().or(z.literal("")),
-  logo_url: z.string().url().max(255).optional().or(z.literal("")),
-  search_aliases: z.string().max(150).optional().or(z.literal("")),
+  website_url: z.string().url().max(255).nullable().optional().or(z.literal("")),
+  logo_url: z.string().url().max(255).nullable().optional().or(z.literal("")),
+  search_aliases: z.string().max(150).nullable().optional().or(z.literal("")),
   is_active: z.number().optional(),
 })
 
