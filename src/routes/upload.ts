@@ -75,10 +75,13 @@ router.post('/media', async (c) => {
       },
     })
 
+    const baseUrl = c.env.PUBLIC_R2_URL || 'https://pub-quduhub-r2.dev';
+    const finalUrl = `${baseUrl.replace(/\/+$/, '')}/${objectKey}`;
+
     return c.json({
       success: true,
       message: 'Image uploaded successfully.',
-      data: { url: objectKey }
+      data: { url: finalUrl }
     })
   } catch (error: any) {
     return c.json({

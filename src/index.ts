@@ -22,6 +22,7 @@ export type Bindings = {
   ROOT_ADMIN_EMAIL?: string
   RAZORPAY_KEY_ID: string
   RAZORPAY_KEY_SECRET: string
+  PUBLIC_R2_URL?: string
 }
 
 export type Variables = {
