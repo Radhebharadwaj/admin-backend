@@ -30,13 +30,13 @@ router.get('/:id', async (c) => {
 // POST /api/universities
 router.post('/', async (c) => {
   try {
-    const { name, slug, website_url, logo_url } = await c.req.json()
+    const { name, slug, website_url, logo_url, search_aliases } = await c.req.json()
     if (!name || !slug) return c.json({ success: false, message: 'Name and slug are required' }, 400)
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
-      'INSERT INTO universities (id, name, slug, website_url, logo_url, is_active) VALUES (?, ?, ?, ?, ?, 1)'
-    ).bind(id, name, slug, website_url || null, logo_url || null).run()
+      'INSERT INTO universities (id, name, slug, website_url, logo_url, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
+    ).bind(id, name, slug, website_url || null, logo_url || null, search_aliases || '').run()
 
     return c.json({ success: true, message: 'University created', data: { id, name, slug } })
   } catch (error: any) {
@@ -51,12 +51,12 @@ router.post('/', async (c) => {
 router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const { name, slug, website_url, logo_url, is_active } = await c.req.json()
+    const { name, slug, website_url, logo_url, search_aliases, is_active } = await c.req.json()
     if (!name || !slug) return c.json({ success: false, message: 'Name and slug are required' }, 400)
 
     await c.env.DB.prepare(
-      'UPDATE universities SET name = ?, slug = ?, website_url = ?, logo_url = ?, is_active = ? WHERE id = ?'
-    ).bind(name, slug, website_url || null, logo_url || null, is_active ?? 1, id).run()
+      'UPDATE universities SET name = ?, slug = ?, website_url = ?, logo_url = ?, search_aliases = ?, is_active = ? WHERE id = ?'
+    ).bind(name, slug, website_url || null, logo_url || null, search_aliases || '', is_active ?? 1, id).run()
 
     return c.json({ success: true, message: 'University updated' })
   } catch (error: any) {

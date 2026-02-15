@@ -37,15 +37,15 @@ router.get('/:id', async (c) => {
 // POST /api/courses
 router.post('/', async (c) => {
   try {
-    const { name, slug, university_id, duration_years, total_semesters } = await c.req.json()
+    const { name, slug, university_id, duration_years, total_semesters, search_aliases } = await c.req.json()
     if (!name || !slug || !university_id || !total_semesters) {
       return c.json({ success: false, message: 'Name, slug, university_id, and total_semesters are required' }, 400)
     }
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
-      'INSERT INTO courses (id, university_id, name, slug, duration_years, total_semesters, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
-    ).bind(id, university_id, name, slug, duration_years || null, total_semesters).run()
+      'INSERT INTO courses (id, university_id, name, slug, duration_years, total_semesters, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)'
+    ).bind(id, university_id, name, slug, duration_years || null, total_semesters, search_aliases || '').run()
 
     return c.json({ success: true, message: 'Course created', data: { id, name, slug, university_id } })
   } catch (error: any) {
@@ -60,12 +60,12 @@ router.post('/', async (c) => {
 router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const { name, slug, duration_years, total_semesters, is_active } = await c.req.json()
+    const { name, slug, duration_years, total_semesters, search_aliases, is_active } = await c.req.json()
     if (!name || !slug) return c.json({ success: false, message: 'Name and slug are required' }, 400)
 
     await c.env.DB.prepare(
-      'UPDATE courses SET name = ?, slug = ?, duration_years = ?, total_semesters = ?, is_active = ? WHERE id = ?'
-    ).bind(name, slug, duration_years || null, total_semesters, is_active ?? 1, id).run()
+      'UPDATE courses SET name = ?, slug = ?, duration_years = ?, total_semesters = ?, search_aliases = ?, is_active = ? WHERE id = ?'
+    ).bind(name, slug, duration_years || null, total_semesters, search_aliases || '', is_active ?? 1, id).run()
 
     return c.json({ success: true, message: 'Course updated' })
   } catch (error: any) {

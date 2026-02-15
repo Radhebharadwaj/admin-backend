@@ -86,15 +86,15 @@ router.get('/:id', async (c) => {
 // POST /api/subjects
 router.post('/', async (c) => {
   try {
-    const { subject_code, name, course_id, semester } = await c.req.json()
+    const { subject_code, name, course_id, semester, search_aliases } = await c.req.json()
     if (!subject_code || !name || !course_id || !semester) {
       return c.json({ success: false, message: 'subject_code, name, course_id, and semester are required' }, 400)
     }
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
-      'INSERT INTO subjects (id, subject_code, name, course_id, semester) VALUES (?, ?, ?, ?, ?)'
-    ).bind(id, subject_code, name, course_id, parseInt(semester)).run()
+      'INSERT INTO subjects (id, subject_code, name, course_id, semester, search_aliases) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(id, subject_code, name, course_id, parseInt(semester), search_aliases || '').run()
 
     return c.json({ success: true, message: 'Subject created', data: { id, subject_code, name, course_id, semester } })
   } catch (error: any) {
@@ -109,12 +109,12 @@ router.post('/', async (c) => {
 router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const { subject_code, name, semester } = await c.req.json()
+    const { subject_code, name, semester, search_aliases } = await c.req.json()
     if (!subject_code || !name) return c.json({ success: false, message: 'subject_code and name are required' }, 400)
 
     await c.env.DB.prepare(
-      'UPDATE subjects SET subject_code = ?, name = ?, semester = ? WHERE id = ?'
-    ).bind(subject_code, name, parseInt(semester), id).run()
+      'UPDATE subjects SET subject_code = ?, name = ?, semester = ?, search_aliases = ? WHERE id = ?'
+    ).bind(subject_code, name, parseInt(semester), search_aliases || '', id).run()
 
     return c.json({ success: true, message: 'Subject updated' })
   } catch (error: any) {
