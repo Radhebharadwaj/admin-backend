@@ -1,7 +1,25 @@
 import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
+import { z } from 'zod'
+import { zValidator } from '@hono/zod-validator'
+
+const handleZodError = (result: any, c: any) => {
+  if (!result.success) {
+    const errorMsg = result.error.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join(', ')
+    return c.json({ success: false, message: errorMsg || 'Invalid input' }, 400)
+  }
+}
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+const universitySchema = z.object({
+  name: z.string().max(150),
+  slug: z.string().max(150).regex(/^[a-z0-9-]+$/, "Invalid slug format. Use only lowercase letters, numbers, and hyphens."),
+  website_url: z.string().url().max(255).optional().or(z.literal("")),
+  logo_url: z.string().url().max(255).optional().or(z.literal("")),
+  search_aliases: z.string().max(150).optional().or(z.literal("")),
+  is_active: z.number().optional(),
+})
 
 // GET /api/universities
 router.get('/', async (c) => {
@@ -28,10 +46,9 @@ router.get('/:id', async (c) => {
 })
 
 // POST /api/universities
-router.post('/', async (c) => {
+router.post('/', zValidator('json', universitySchema, handleZodError), async (c) => {
   try {
-    const { name, slug, website_url, logo_url, search_aliases } = await c.req.json()
-    if (!name || !slug) return c.json({ success: false, message: 'Name and slug are required' }, 400)
+    const { name, slug, website_url, logo_url, search_aliases } = c.req.valid('json')
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
@@ -48,11 +65,10 @@ router.post('/', async (c) => {
 })
 
 // PATCH /api/universities/:id
-router.patch('/:id', async (c) => {
+router.patch('/:id', zValidator('json', universitySchema, handleZodError), async (c) => {
   try {
     const id = c.req.param('id')
-    const { name, slug, website_url, logo_url, search_aliases, is_active } = await c.req.json()
-    if (!name || !slug) return c.json({ success: false, message: 'Name and slug are required' }, 400)
+    const { name, slug, website_url, logo_url, search_aliases, is_active } = c.req.valid('json')
 
     await c.env.DB.prepare(
       'UPDATE universities SET name = ?, slug = ?, website_url = ?, logo_url = ?, search_aliases = ?, is_active = ? WHERE id = ?'

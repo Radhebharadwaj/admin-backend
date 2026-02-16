@@ -1,7 +1,24 @@
 import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
+import { z } from 'zod'
+import { zValidator } from '@hono/zod-validator'
+
+const handleZodError = (result: any, c: any) => {
+  if (!result.success) {
+    const errorMsg = result.error.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join(', ')
+    return c.json({ success: false, message: errorMsg || 'Invalid input' }, 400)
+  }
+}
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+const subjectSchema = z.object({
+  subject_code: z.string().max(150).regex(/^[a-zA-Z0-9-]+$/, "Invalid subject code format. Use only letters, numbers, and hyphens."),
+  name: z.string().max(150),
+  course_id: z.string().uuid().optional(),
+  semester: z.union([z.string(), z.number()]),
+  search_aliases: z.string().max(150).optional().or(z.literal("")),
+})
 
 // GET /api/subjects/search?q=XYZ — Global Search across ALL universities
 router.get('/search', async (c) => {
@@ -84,12 +101,10 @@ router.get('/:id', async (c) => {
 })
 
 // POST /api/subjects
-router.post('/', async (c) => {
+router.post('/', zValidator('json', subjectSchema, handleZodError), async (c) => {
   try {
-    const { subject_code, name, course_id, semester, search_aliases } = await c.req.json()
-    if (!subject_code || !name || !course_id || !semester) {
-      return c.json({ success: false, message: 'subject_code, name, course_id, and semester are required' }, 400)
-    }
+    const { subject_code, name, course_id, semester, search_aliases } = c.req.valid('json')
+    if (!course_id) return c.json({ success: false, message: 'course_id is required' }, 400)
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
@@ -106,11 +121,10 @@ router.post('/', async (c) => {
 })
 
 // PATCH /api/subjects/:id
-router.patch('/:id', async (c) => {
+router.patch('/:id', zValidator('json', subjectSchema, handleZodError), async (c) => {
   try {
     const id = c.req.param('id')
-    const { subject_code, name, semester, search_aliases } = await c.req.json()
-    if (!subject_code || !name) return c.json({ success: false, message: 'subject_code and name are required' }, 400)
+    const { subject_code, name, semester, search_aliases } = c.req.valid('json')
 
     await c.env.DB.prepare(
       'UPDATE subjects SET subject_code = ?, name = ?, semester = ?, search_aliases = ? WHERE id = ?'
