@@ -3,7 +3,7 @@ import { Bindings, Variables } from '../index'
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_IMAGE_SIZE = 1 * 1024 * 1024 // 1MB
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'])
 
 // POST /api/upload/image
