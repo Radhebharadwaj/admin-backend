@@ -28,6 +28,9 @@ export type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// ==========================================
+// Middleware Configuration
+// ==========================================
 // CORS Middleware
 app.use('/api/*', cors({
   origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev'],
