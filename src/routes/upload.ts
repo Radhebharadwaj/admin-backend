@@ -75,4 +75,68 @@ router.post('/image', async (c) => {
   }
 })
 
+const MAX_DOC_SIZE = 50 * 1024 * 1024 // 50MB
+const ALLOWED_DOC_TYPES = new Set([
+  'application/pdf',
+  'video/mp4',
+  'video/webm',
+  'application/epub+zip',
+  'application/zip'
+])
+
+// POST /api/upload/document
+router.post('/document', async (c) => {
+  try {
+    const r2 = c.env.BUCKET
+    if (!r2) {
+      return c.json({ success: false, message: 'R2 Bucket is not configured.' }, 500)
+    }
+
+    const formData = await c.req.parseBody()
+    const file = formData.file as File | undefined
+    const folder = (formData.folder as string) || 'documents'
+
+    if (!file || file.size === 0) {
+      return c.json({ success: false, message: 'No file provided.' }, 400)
+    }
+
+    if (file.size > MAX_DOC_SIZE) {
+      return c.json({ success: false, message: `File too large. Maximum size is ${MAX_DOC_SIZE / 1024 / 1024}MB.` }, 413)
+    }
+
+    const mimeType = file.type?.toLowerCase() || ''
+    if (!ALLOWED_DOC_TYPES.has(mimeType)) {
+      return c.json({
+        success: false,
+        message: `Unsupported file type "${mimeType}". Allowed: PDF, MP4, WebM, EPUB, ZIP`
+      }, 415)
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '_')
+    const objectKey = `${safeFolder}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+
+    const teamMember = c.get('teamMember')
+    await r2.put(objectKey, await file.arrayBuffer(), {
+      httpMetadata: { contentType: mimeType },
+      customMetadata: {
+        uploadedBy: teamMember?.email || 'unknown',
+        originalName: file.name,
+      },
+    })
+
+    return c.json({
+      success: true,
+      message: 'Document uploaded successfully.',
+      data: { url: objectKey }
+    })
+  } catch (error: any) {
+    return c.json({
+      success: false,
+      message: 'Upload failed.',
+      debug: error.message
+    }, 500)
+  }
+})
+
 export default router

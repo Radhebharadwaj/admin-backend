@@ -10,6 +10,8 @@ import chaptersRouter from './routes/chapters'
 import resourcesRouter from './routes/resources'
 import uploadRouter from './routes/upload'
 import analyticsRouter from './routes/analytics'
+import paymentsRouter from './routes/payments'
+import studentRouter from './routes/student'
 
 export type Bindings = {
   DB: D1Database
@@ -17,6 +19,8 @@ export type Bindings = {
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
   ROOT_ADMIN_EMAIL?: string
+  RAZORPAY_KEY_ID: string
+  RAZORPAY_KEY_SECRET: string
 }
 
 export type Variables = {
@@ -134,11 +138,18 @@ app.get('/api/proxy-resource', async (c) => {
 
     // Fetch the external URL from the database
     const resource = await c.env.DB.prepare(
-      'SELECT external_url FROM subject_resources WHERE id = ?'
+      'SELECT external_url, price_in_inr FROM subject_resources WHERE id = ?'
     ).bind(resourceId).first()
 
     if (!resource || !resource.external_url) {
       return c.json({ success: false, message: 'Resource not found or no external URL associated' }, 404)
+    }
+
+    const { checkResourceAccess } = await import('./utils/access')
+    const hasAccess = await checkResourceAccess(c, resourceId, resource.price_in_inr as number)
+
+    if (!hasAccess) {
+      return c.json({ success: false, message: '403 Forbidden: Resource is locked.' }, 403)
     }
 
     const externalUrl = resource.external_url as string
@@ -404,5 +415,7 @@ app.route('/api/chapters', chaptersRouter)
 app.route('/api/resources', resourcesRouter)
 app.route('/api/upload', uploadRouter)
 app.route('/api/analytics', analyticsRouter)
+app.route('/api/payments', paymentsRouter)
+app.route('/api/student', studentRouter)
 
 export default app

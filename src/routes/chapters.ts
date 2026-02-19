@@ -45,6 +45,9 @@ router.post('/', async (c) => {
 
     return c.json({ success: true, message: 'Chapter created', data: { id } })
   } catch (error: any) {
+    if (error.message && error.message.includes('SQLITE_CONSTRAINT_UNIQUE')) {
+      return c.json({ success: false, message: 'A chapter with this number already exists in this subject.' }, 400)
+    }
     return c.json({ success: false, message: error.message }, 500)
   }
 })
@@ -69,6 +72,9 @@ router.patch('/:id', async (c) => {
 
     return c.json({ success: true, message: 'Chapter updated' })
   } catch (error: any) {
+    if (error.message && error.message.includes('SQLITE_CONSTRAINT_UNIQUE')) {
+      return c.json({ success: false, message: 'A chapter with this number already exists in this subject.' }, 400)
+    }
     return c.json({ success: false, message: error.message }, 500)
   }
 })
