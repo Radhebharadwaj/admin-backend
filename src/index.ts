@@ -63,6 +63,18 @@ const authMiddleware = async (c: any, next: any) => {
       return c.json({ success: false, message: '401 Unauthorized — Invalid Token' }, 401)
     }
 
+    // Root Admin Bypass
+    if (c.env.ROOT_ADMIN_EMAIL && user.email?.toLowerCase() === c.env.ROOT_ADMIN_EMAIL.toLowerCase()) {
+      c.set('teamMember', { 
+        id: "root", 
+        email: user.email, 
+        role: "SUPER_ADMIN", 
+        scope: "ALL", 
+        is_active: true 
+      })
+      return await next()
+    }
+
     // Check team_members table
     const { data: teamMember, error: dbError } = await supabaseAdmin
       .from('team_members')
