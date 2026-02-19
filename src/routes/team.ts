@@ -18,7 +18,7 @@ team.get('/', async (c) => {
   const supabaseAdmin = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
   const { data, error } = await supabaseAdmin
     .from('team_members')
-    .select('id, email, role, scope, is_active')
+    .select('id, email, member_name, role, scope, is_active')
 
   if (error) {
     return c.json({ success: false, message: 'Failed to fetch team members' }, 500)
@@ -51,6 +51,7 @@ team.post('/', async (c) => {
     .insert([{ 
        id: userId,
        email: body.email, 
+       member_name: body.member_name || null,
        role: body.role || 'EDITOR', 
        scope: body.scope || 'ALL', 
        is_active: true 
