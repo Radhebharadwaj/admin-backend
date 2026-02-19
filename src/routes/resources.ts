@@ -107,13 +107,20 @@ router.patch('/:id', async (c) => {
     if (thumbnail_url) {
       const oldResource = await c.env.DB.prepare('SELECT thumbnail_url FROM subject_resources WHERE id = ?').bind(id).first();
       if (oldResource && oldResource.thumbnail_url && oldResource.thumbnail_url !== thumbnail_url) {
-        const oldKey = oldResource.thumbnail_url as string;
-        if (!oldKey.startsWith('http')) {
-          try {
-            await c.env.BUCKET.delete(oldKey);
-          } catch (e) {
-            console.error('Failed to delete old thumbnail from R2:', e);
+        let oldKey = oldResource.thumbnail_url as string;
+        try {
+          if (oldKey.startsWith('http')) {
+            const urlObj = new URL(oldKey);
+            oldKey = urlObj.pathname.replace(/^\//, ''); // Strip base URL and leading slash
+          } else {
+            oldKey = oldKey.replace(/^\//, ''); // Strip leading slash just in case
           }
+          
+          if (oldKey) {
+            await c.env.BUCKET.delete(oldKey);
+          }
+        } catch (e) {
+          console.error('Failed to parse or delete old thumbnail from R2:', e);
         }
       }
     }
