@@ -10,7 +10,7 @@ import resourcesRouter from './routes/resources'
 
 export type Bindings = {
   DB: D1Database
-  BUCKET: R2Bucket
+  BUCKET?: R2Bucket
   SUPABASE_URL: string
   SUPABASE_SERVICE_ROLE_KEY: string
   ROOT_ADMIN_EMAIL?: string
