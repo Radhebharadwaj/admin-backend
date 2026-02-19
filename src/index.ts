@@ -181,7 +181,7 @@ app.get('/api/admin/dashboard', async (c) => {
       const supabaseAdmin = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
       const { count } = await supabaseAdmin.from('team_members').select('*', { count: 'exact', head: true })
       teamCount = count || 0
-    } catch (e) {}
+    } catch (e) { }
 
     return c.json({
       success: true,
@@ -334,7 +334,7 @@ app.post('/api/admin/publish', async (c) => {
   }
 })
 
-// Mount sub-routers
+// Mount sub-router
 app.route('/api/team', teamRouter)
 app.route('/api/universities', universitiesRouter)
 app.route('/api/courses', coursesRouter)
