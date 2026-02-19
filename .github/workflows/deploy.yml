@@ -11,6 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      # 1. Server par Node.js setup karo
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      # 2. Saari dependencies install karo (Yahi kasht tha!)
+      - name: Install dependencies
+        run: npm install
+        
+      # 3. Ab araam se deploy karo
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
