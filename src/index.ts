@@ -145,7 +145,7 @@ app.get('/api/admin/dropdown', async (c) => {
 app.post('/api/admin/publish', async (c) => {
   const teamMember = c.get('teamMember')
   
-  let formData: FormData
+  let formData: Record<string, any>
   try {
     formData = await c.req.parseBody()
   } catch (e) {
@@ -159,7 +159,7 @@ app.post('/api/admin/publish', async (c) => {
   if (userScope !== "ALL" && universitySlug && universitySlug.toUpperCase() !== userScope.toUpperCase()) {
     return c.json({
       success: false,
-      message: \`Unauthorized: Your scope is limited to "\${userScope}". You cannot publish content for "\${universitySlug}".\`,
+      message: `Unauthorized: Your scope is limited to "${userScope}". You cannot publish content for "${universitySlug}".`,
     }, 403)
   }
 
@@ -199,7 +199,7 @@ app.post('/api/admin/publish', async (c) => {
     try {
       const mimeToExt: Record<string, string> = { "application/pdf": "pdf", "application/json": "json" }
       const finalExt = mimeToExt[mimeType] || "pdf"
-      r2ObjectKey = \`assignments/\${subjectCode}/\${Date.now()}-\${crypto.randomUUID()}.\${finalExt}\`
+      r2ObjectKey = `assignments/${subjectCode}/${Date.now()}-${crypto.randomUUID()}.${finalExt}`
       
       await r2.put(r2ObjectKey, await resourceFile.arrayBuffer(), {
         httpMetadata: { contentType: mimeType },
@@ -207,12 +207,12 @@ app.post('/api/admin/publish', async (c) => {
       })
     } catch (e: any) {
       if (!e.message?.includes("is not defined")) {
-        return c.json({ success: false, message: \`R2 upload failed: \${e.message}\` }, 500)
+        return c.json({ success: false, message: `R2 upload failed: ${e.message}` }, 500)
       }
     }
   } else if (richTextContent) {
     try {
-      r2ObjectKey = \`assignments/\${subjectCode}/\${Date.now()}-\${crypto.randomUUID()}.json\`
+      r2ObjectKey = `assignments/${subjectCode}/${Date.now()}-${crypto.randomUUID()}.json`
       const payload = JSON.stringify({
         subjectCode, sessionYear, content: richTextContent,
         uploadedBy: teamMember.email, createdAt: new Date().toISOString(),
@@ -227,13 +227,13 @@ app.post('/api/admin/publish', async (c) => {
   
   try {
     await c.env.DB.prepare(
-      \`INSERT INTO assignment_metadata
+      `INSERT INTO assignment_metadata
          (id, subject_code, session_year, price, r2_payload_url, status, is_active,
           valid_from, valid_until, is_expired, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, 'SOLVED', 1, ?, '2027-03-31', 0, ?)\`
+       VALUES (?, ?, ?, ?, ?, 'SOLVED', 1, ?, '2027-03-31', 0, ?)`
     ).bind(assignmentId, subjectCode, sessionYear, price, r2ObjectKey, now, teamMember.email).run()
 
-    return c.json({ success: true, message: \`✅ Published! Assignment "\${subjectCode}" (\${sessionYear}) is now live.\` })
+    return c.json({ success: true, message: `✅ Published! Assignment "${subjectCode}" (${sessionYear}) is now live.` })
   } catch (dbError: any) {
     if (dbError.message?.includes("no such table")) {
       return c.json({ success: true, message: "Published (Mocked — DB table missing in dev)" })
