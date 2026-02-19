@@ -89,10 +89,25 @@ const authMiddleware = async (c: any, next: any) => {
 
     c.set('teamMember', teamMember)
     await next()
-  } catch (error) {
-    return c.json({ success: false, message: '500 Internal Server Error — Auth failed.' }, 500)
+  } catch (error: any) {
+    return c.json({ success: false, message: '500 Internal Server Error — Auth failed.', debug: error?.message || 'unknown' }, 500)
   }
 }
+
+// Health check (no auth required)
+app.get('/api/health', async (c) => {
+  return c.json({
+    status: 'ok',
+    env: {
+      SUPABASE_URL: !!c.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: !!c.env.SUPABASE_SERVICE_ROLE_KEY,
+      ROOT_ADMIN_EMAIL: !!c.env.ROOT_ADMIN_EMAIL,
+      ROOT_ADMIN_EMAIL_VALUE: c.env.ROOT_ADMIN_EMAIL ? c.env.ROOT_ADMIN_EMAIL.substring(0, 5) + '***' : 'NOT SET',
+      DB: !!c.env.DB,
+      BUCKET: !!c.env.BUCKET,
+    }
+  })
+})
 
 // Apply Auth Middleware
 app.use('/api/admin/*', authMiddleware)
