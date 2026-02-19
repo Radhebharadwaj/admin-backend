@@ -103,6 +103,21 @@ router.patch('/:id', async (c) => {
       return c.json({ success: false, message: `Category must be one of: ${validCategories.join(', ')}` }, 400)
     }
 
+    // Garbage Collection: Delete old thumbnail from R2 if a new one is provided
+    if (thumbnail_url) {
+      const oldResource = await c.env.DB.prepare('SELECT thumbnail_url FROM subject_resources WHERE id = ?').bind(id).first();
+      if (oldResource && oldResource.thumbnail_url && oldResource.thumbnail_url !== thumbnail_url) {
+        const oldKey = oldResource.thumbnail_url as string;
+        if (!oldKey.startsWith('http')) {
+          try {
+            await c.env.BUCKET.delete(oldKey);
+          } catch (e) {
+            console.error('Failed to delete old thumbnail from R2:', e);
+          }
+        }
+      }
+    }
+
     await c.env.DB.prepare(`
       UPDATE subject_resources SET
         chapter_id = COALESCE(?, chapter_id), category = COALESCE(?, category), title = COALESCE(?, title),
