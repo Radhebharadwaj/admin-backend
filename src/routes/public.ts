@@ -50,22 +50,22 @@ router.get('/catalog/:university/:course/:semester', async (c) => {
   }
 })
 
-// c) GET /api/public/subject/:subjectId
-router.get('/subject/:subjectId', async (c) => {
+// c) GET /api/public/subject/:subjectCode
+router.get('/subject/:subjectCode', async (c) => {
   try {
-    const subjectId = c.req.param('subjectId')
+    const subjectCode = c.req.param('subjectCode')
 
     // Fetch Subject Info
     const subject = await c.env.DB.prepare(
-      'SELECT * FROM subjects WHERE id = ?'
-    ).bind(subjectId).first()
+      'SELECT * FROM subjects WHERE subject_code = ?'
+    ).bind(subjectCode).first()
 
     if (!subject) return c.json({ success: false, message: 'Subject not found' }, 404)
 
-    // Fetch Chapters
+    // Fetch Chapters using the retrieved subject ID
     const { results: chapters } = await c.env.DB.prepare(
       'SELECT * FROM chapters WHERE subject_id = ? AND is_active = 1 ORDER BY chapter_number ASC'
-    ).bind(subjectId).all()
+    ).bind(subject.id).all()
 
     return c.json({ success: true, data: { subject, chapters } })
   } catch (error: any) {
