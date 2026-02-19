@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "admin-backend",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-03"
+  "compatibility_date": "2026-09-03",
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
@@ -15,19 +15,19 @@
   //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   //   }
   // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "quduhub-storage"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quduhub-database",
+      "database_id": "66362fa2-2cc9-4820-9ce6-c6af26b6ca01"
+    }
+  ],
   // "ai": {
   //   "binding": "AI"
   // },

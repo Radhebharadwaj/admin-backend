@@ -88,6 +88,12 @@ app.use('/api/team/*', authMiddleware)
 app.use('/api/team', authMiddleware)
 
 // GET Dashboard Stats
+app.get('/api/admin/me', async (c) => {
+  const teamMember = c.get('teamMember')
+  return c.json({ success: true, data: teamMember })
+})
+
+// GET Dashboard Stats
 app.get('/api/admin/dashboard', async (c) => {
   try {
     const db = c.env.DB
