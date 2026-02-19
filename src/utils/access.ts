@@ -37,7 +37,13 @@ export async function checkResourceAccess(c: any, resourceId: string, priceInInr
       return true
     }
 
-    // 2. Team Member (Admin) Bypass
+    // 2. VIP JWT Role Bypass (Admins & Team Members)
+    const role = user.user_metadata?.role || user.app_metadata?.role;
+    if (role === 'admin' || role === 'team_member' || role === 'SUPER_ADMIN' || role === 'CONTENT_MANAGER') {
+      return true;
+    }
+
+    // 3. Team Member (Admin) Bypass via DB
     const { data: teamMember } = await supabase
       .from('team_members')
       .select('id')
