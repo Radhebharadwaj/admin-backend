@@ -265,6 +265,10 @@ app.post('/api/admin/publish', async (c) => {
   let r2ObjectKey = ""
   const r2 = c.env.BUCKET
 
+  if (!r2) {
+    return c.json({ success: false, message: "R2 Bucket is not configured." }, 500)
+  }
+
   // File sanitization
   if (resourceFile && resourceFile.size > 0) {
     const MAX_FILE_SIZE = 10 * 1024 * 1024
