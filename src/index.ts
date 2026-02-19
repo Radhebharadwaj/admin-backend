@@ -6,6 +6,7 @@ import teamRouter from './routes/team'
 import universitiesRouter from './routes/universities'
 import coursesRouter from './routes/courses'
 import subjectsRouter from './routes/subjects'
+import chaptersRouter from './routes/chapters'
 import resourcesRouter from './routes/resources'
 
 export type Bindings = {
@@ -79,6 +80,7 @@ const authMiddleware = async (c: any, next: any) => {
       c.set('teamMember', {
         id: "root",
         email: user.email,
+        member_name: "Root Administrator",
         role: "SUPER_ADMIN",
         scope: "ALL",
         is_active: true
@@ -89,7 +91,7 @@ const authMiddleware = async (c: any, next: any) => {
     // Check team_members table
     const { data: teamMember, error: dbError } = await supabaseAdmin
       .from('team_members')
-      .select('id, email, role, scope, is_active')
+      .select('id, email, member_name, role, scope, is_active')
       .eq('email', user.email)
       .eq('is_active', true)
       .single()
@@ -130,8 +132,32 @@ app.use('/api/courses/*', authMiddleware)
 app.use('/api/courses', authMiddleware)
 app.use('/api/subjects/*', authMiddleware)
 app.use('/api/subjects', authMiddleware)
+app.use('/api/chapters/*', authMiddleware)
+app.use('/api/chapters', authMiddleware)
 app.use('/api/resources/*', authMiddleware)
 app.use('/api/resources', authMiddleware)
+
+// RBAC Middleware
+export const requireRole = (allowedRoles: string[]) => async (c: any, next: any) => {
+  if (c.req.method === 'GET') return await next();
+  const teamMember = c.get('teamMember');
+  if (!teamMember || !allowedRoles.includes(teamMember.role)) {
+    return c.json({ success: false, message: '403 Forbidden — You do not have permission for this action.' }, 403);
+  }
+  await next();
+}
+
+// Apply RBAC to mutations
+app.use('/api/universities/*', requireRole(['SUPER_ADMIN']))
+app.use('/api/universities', requireRole(['SUPER_ADMIN']))
+app.use('/api/courses/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
+app.use('/api/courses', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
+app.use('/api/subjects/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
+app.use('/api/subjects', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
+app.use('/api/chapters/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
+app.use('/api/chapters', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
+app.use('/api/resources/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
+app.use('/api/resources', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
 
 // GET Dashboard Stats
 app.get('/api/admin/me', async (c) => {
@@ -309,6 +335,7 @@ app.route('/api/team', teamRouter)
 app.route('/api/universities', universitiesRouter)
 app.route('/api/courses', coursesRouter)
 app.route('/api/subjects', subjectsRouter)
+app.route('/api/chapters', chaptersRouter)
 app.route('/api/resources', resourcesRouter)
 
 export default app
