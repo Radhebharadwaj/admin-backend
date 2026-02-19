@@ -280,7 +280,7 @@ app.post('/api/admin/publish', async (c) => {
   }
 })
 
-// Mount sub-routers 
+// Mount sub-routers
 app.route('/api/team', teamRouter)
 
 export default app
