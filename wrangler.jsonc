@@ -3,6 +3,7 @@
   "name": "admin-backend",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-03",
+  "account_id": "07b7533d736094a29b684e91f1042327",
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
