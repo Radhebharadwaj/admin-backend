@@ -60,7 +60,11 @@ const authMiddleware = async (c: any, next: any) => {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(sessionToken)
 
     if (authError || !user) {
-      return c.json({ success: false, message: '401 Unauthorized — Invalid Token' }, 401)
+      return c.json({ 
+        success: false, 
+        message: '401 Unauthorized — Invalid Token', 
+        debug: authError?.message || 'No user returned' 
+      }, 401)
     }
 
     // Root Admin Bypass
