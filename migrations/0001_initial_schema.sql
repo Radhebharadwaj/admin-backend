@@ -1,4 +1,3 @@
-PRAGMA foreign_keys = OFF;
 
 -- 1. Universities Table
 CREATE TABLE IF NOT EXISTS universities (
@@ -61,4 +60,3 @@ CREATE INDEX IF NOT EXISTS idx_subjects_course_id ON subjects(course_id);
 CREATE INDEX IF NOT EXISTS idx_subjects_subject_code ON subjects(subject_code);
 CREATE INDEX IF NOT EXISTS idx_subject_resources_subject_id ON subject_resources(subject_id);
 
-PRAGMA foreign_keys = ON;

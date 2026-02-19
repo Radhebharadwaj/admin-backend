@@ -1,6 +1,4 @@
-PRAGMA foreign_keys = OFF;
 
-BEGIN TRANSACTION;
 
 -- 1. Create chapters table
 CREATE TABLE IF NOT EXISTS chapters (
@@ -54,6 +52,4 @@ ALTER TABLE subject_resources_new RENAME TO subject_resources;
 CREATE INDEX IF NOT EXISTS idx_subject_resources_subject_id ON subject_resources(subject_id);
 CREATE INDEX IF NOT EXISTS idx_subject_resources_chapter_id ON subject_resources(chapter_id);
 
-COMMIT;
 
-PRAGMA foreign_keys = ON;

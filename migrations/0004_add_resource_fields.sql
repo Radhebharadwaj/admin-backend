@@ -3,9 +3,7 @@
 -- Note: These columns have already been added to production D1 via console.
 -- This migration keeps local dev and Git in sync.
 
-PRAGMA foreign_keys = OFF;
 
-BEGIN TRANSACTION;
 
 -- Recreate subject_resources with the new columns and r2_object_key defaulting to ''
 CREATE TABLE subject_resources_new (
@@ -47,6 +45,4 @@ ALTER TABLE subject_resources_new RENAME TO subject_resources;
 CREATE INDEX IF NOT EXISTS idx_subject_resources_subject_id ON subject_resources(subject_id);
 CREATE INDEX IF NOT EXISTS idx_subject_resources_chapter_id ON subject_resources(chapter_id);
 
-COMMIT;
 
-PRAGMA foreign_keys = ON;
