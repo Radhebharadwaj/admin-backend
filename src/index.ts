@@ -3,6 +3,10 @@ import { cors } from 'hono/cors'
 import { createClient } from '@supabase/supabase-js'
 
 import teamRouter from './routes/team'
+import universitiesRouter from './routes/universities'
+import coursesRouter from './routes/courses'
+import subjectsRouter from './routes/subjects'
+import resourcesRouter from './routes/resources'
 
 export type Bindings = {
   DB: D1Database
@@ -28,7 +32,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 app.use('/api/*', cors({
   origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
-  allowMethods: ['POST', 'GET', 'OPTIONS'],
+  allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
   exposeHeaders: ['Content-Length'],
   maxAge: 600,
   credentials: true,
@@ -117,6 +121,14 @@ app.get('/api/health', async (c) => {
 app.use('/api/admin/*', authMiddleware)
 app.use('/api/team/*', authMiddleware)
 app.use('/api/team', authMiddleware)
+app.use('/api/universities/*', authMiddleware)
+app.use('/api/universities', authMiddleware)
+app.use('/api/courses/*', authMiddleware)
+app.use('/api/courses', authMiddleware)
+app.use('/api/subjects/*', authMiddleware)
+app.use('/api/subjects', authMiddleware)
+app.use('/api/resources/*', authMiddleware)
+app.use('/api/resources', authMiddleware)
 
 // GET Dashboard Stats
 app.get('/api/admin/me', async (c) => {
@@ -282,5 +294,9 @@ app.post('/api/admin/publish', async (c) => {
 
 // Mount sub-routers
 app.route('/api/team', teamRouter)
+app.route('/api/universities', universitiesRouter)
+app.route('/api/courses', coursesRouter)
+app.route('/api/subjects', subjectsRouter)
+app.route('/api/resources', resourcesRouter)
 
 export default app
