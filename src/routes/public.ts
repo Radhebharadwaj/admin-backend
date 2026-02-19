@@ -73,4 +73,53 @@ router.get('/subject/:subjectCode', async (c) => {
   }
 })
 
+// d) GET /api/public/universities
+router.get('/universities', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT id, name, slug, icon, short_name FROM universities WHERE is_active = true ORDER BY name ASC'
+    ).all()
+    return c.json(results)
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500)
+  }
+})
+
+// e) GET /api/public/universities/:univSlug/courses
+router.get('/universities/:univSlug/courses', async (c) => {
+  try {
+    const univSlug = c.req.param('univSlug')
+    const { results } = await c.env.DB.prepare(`
+      SELECT c.id, c.name, c.slug, c.duration_years 
+      FROM courses c 
+      INNER JOIN universities u ON c.university_id = u.id 
+      WHERE u.slug = ? AND c.is_active = true 
+      ORDER BY c.name ASC
+    `).bind(univSlug).all()
+    
+    return c.json(results)
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500)
+  }
+})
+
+// f) GET /api/public/courses/:courseSlug/semesters
+router.get('/courses/:courseSlug/semesters', async (c) => {
+  try {
+    const courseSlug = c.req.param('courseSlug')
+    const { results } = await c.env.DB.prepare(`
+      SELECT DISTINCT semester 
+      FROM subjects s 
+      INNER JOIN courses c ON s.course_id = c.id 
+      WHERE c.slug = ? 
+      ORDER BY semester ASC
+    `).bind(courseSlug).all()
+    
+    // results is an array of objects like { semester: 1 }, { semester: 2 }
+    return c.json(results)
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500)
+  }
+})
+
 export default router
