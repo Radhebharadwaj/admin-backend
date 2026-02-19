@@ -28,10 +28,8 @@ jobs:
       # 🔥 THE FIX: Spoon-feeding the exact file path and config file to Wrangler
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
-        env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CF_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CF_EMAIL }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
           packageManager: pnpm
           command: deploy src/index.ts -c wrangler.jsonc
