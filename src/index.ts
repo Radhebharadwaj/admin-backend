@@ -140,12 +140,19 @@ app.get('/api/admin/me', async (c) => {
 app.get('/api/admin/dashboard', async (c) => {
   try {
     const db = c.env.DB
-    const [uniRes, courseRes, subjRes, salesRes] = await db.batch([
+    // Removed purchases query since table doesn't exist yet
+    const [uniRes, courseRes, subjRes] = await db.batch([
       db.prepare("SELECT COUNT(*) as count FROM universities"),
       db.prepare("SELECT COUNT(*) as count FROM courses"),
-      db.prepare("SELECT COUNT(*) as count FROM subjects"),
-      db.prepare("SELECT SUM(price) as total FROM purchases WHERE status = 'SUCCESS'")
+      db.prepare("SELECT COUNT(*) as count FROM subjects")
     ])
+
+    let teamCount = 0
+    try {
+      const supabaseAdmin = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
+      const { count } = await supabaseAdmin.from('team_members').select('*', { count: 'exact', head: true })
+      teamCount = count || 0
+    } catch (e) {}
 
     return c.json({
       success: true,
@@ -153,14 +160,16 @@ app.get('/api/admin/dashboard', async (c) => {
         universities: (uniRes.results[0] as any)?.count || 0,
         courses: (courseRes.results[0] as any)?.count || 0,
         subjects: (subjRes.results[0] as any)?.count || 0,
-        totalSales: (salesRes.results[0] as any)?.total || 0,
+        teamMembers: teamCount,
+        totalSales: 0 // Hardcoded to 0 until purchases table is created
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     return c.json({
-      success: true,
-      data: { universities: 2, courses: 4, subjects: 124, totalSales: 42500 }
-    })
+      success: false,
+      message: 'Failed to fetch dashboard stats',
+      debug: error.message
+    }, 500)
   }
 })
 
