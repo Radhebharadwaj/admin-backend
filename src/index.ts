@@ -8,6 +8,7 @@ import coursesRouter from './routes/courses'
 import subjectsRouter from './routes/subjects'
 import chaptersRouter from './routes/chapters'
 import resourcesRouter from './routes/resources'
+import uploadRouter from './routes/upload'
 
 export type Bindings = {
   DB: D1Database
@@ -122,6 +123,51 @@ app.get('/api/health', async (c) => {
   })
 })
 
+// Proxy Route (Bypass CORS & X-Frame-Options for External PDFs)
+app.get('/api/proxy-resource', async (c) => {
+  try {
+    const resourceId = c.req.query('id')
+    if (!resourceId) {
+      return c.json({ success: false, message: 'Missing id parameter' }, 400)
+    }
+
+    // Fetch the external URL from the database
+    const resource = await c.env.DB.prepare(
+      'SELECT external_url FROM subject_resources WHERE id = ?'
+    ).bind(resourceId).first()
+
+    if (!resource || !resource.external_url) {
+      return c.json({ success: false, message: 'Resource not found or no external URL associated' }, 404)
+    }
+
+    const externalUrl = resource.external_url as string
+
+    const response = await fetch(externalUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      },
+    })
+
+    if (!response.ok) {
+      return c.json({ success: false, message: `Failed to fetch external resource: ${response.statusText}` }, response.status)
+    }
+
+    const contentType = response.headers.get('Content-Type') || 'application/pdf'
+    const arrayBuffer = await response.arrayBuffer()
+
+    return new Response(arrayBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*',
+        'Content-Disposition': 'inline', // Ensures it displays in browser instead of downloading
+      },
+    })
+  } catch (error: any) {
+    return c.json({ success: false, message: 'Error fetching proxy resource', debug: error.message }, 500)
+  }
+})
+
 // Apply Auth Middleware
 app.use('/api/admin/*', authMiddleware)
 app.use('/api/team/*', authMiddleware)
@@ -136,6 +182,8 @@ app.use('/api/chapters/*', authMiddleware)
 app.use('/api/chapters', authMiddleware)
 app.use('/api/resources/*', authMiddleware)
 app.use('/api/resources', authMiddleware)
+app.use('/api/upload/*', authMiddleware)
+app.use('/api/upload', authMiddleware)
 
 // RBAC Middleware
 export const requireRole = (allowedRoles: string[]) => async (c: any, next: any) => {
@@ -158,6 +206,8 @@ app.use('/api/chapters/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_
 app.use('/api/chapters', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
 app.use('/api/resources/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
 app.use('/api/resources', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER', 'DATA_ENTRY']))
+app.use('/api/upload/*', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
+app.use('/api/upload', requireRole(['SUPER_ADMIN', 'CONTENT_MANAGER']))
 
 // GET Dashboard Stats
 app.get('/api/admin/me', async (c) => {
@@ -341,5 +391,6 @@ app.route('/api/courses', coursesRouter)
 app.route('/api/subjects', subjectsRouter)
 app.route('/api/chapters', chaptersRouter)
 app.route('/api/resources', resourcesRouter)
+app.route('/api/upload', uploadRouter)
 
 export default app

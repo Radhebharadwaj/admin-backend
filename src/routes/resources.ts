@@ -48,10 +48,10 @@ router.get('/:id', async (c) => {
 router.post('/', async (c) => {
   try {
     const body = await c.req.json()
-    const { subject_id, chapter_id, category, title, r2_object_key, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year } = body
+    const { subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year } = body
 
-    if (!subject_id || !category || !title || !r2_object_key) {
-      return c.json({ success: false, message: 'subject_id, category, title, and r2_object_key are required' }, 400)
+    if (!subject_id || !category || !title) {
+      return c.json({ success: false, message: 'subject_id, category, and title are required' }, 400)
     }
 
     const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE']
@@ -62,10 +62,10 @@ router.post('/', async (c) => {
     const id = crypto.randomUUID()
     await c.env.DB.prepare(`
       INSERT INTO subject_resources 
-        (id, subject_id, chapter_id, category, title, r2_object_key, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        (id, subject_id, chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).bind(
-      id, subject_id, chapter_id || null, category, title, r2_object_key,
+      id, subject_id, chapter_id || null, category, title, external_url || null, thumbnail_url || null, description || null,
       is_public ? 1 : 0, price_in_inr || 0,
       free_after_date || null, valid_from || null,
       submission_deadline || null, academic_year || null
@@ -82,7 +82,7 @@ router.patch('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const body = await c.req.json()
-    const { chapter_id, category, title, r2_object_key, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, is_active } = body
+    const { chapter_id, category, title, external_url, thumbnail_url, description, is_public, price_in_inr, free_after_date, valid_from, submission_deadline, academic_year, is_active } = body
 
     const validCategories = ['ASSIGNMENT', 'PROJECT', 'PYQ', 'SHORTNOTES', 'SOLUTION', 'VIDEO_LECTURE', 'EBOOK_MODULE']
     if (category && !validCategories.includes(category)) {
@@ -91,11 +91,14 @@ router.patch('/:id', async (c) => {
 
     await c.env.DB.prepare(`
       UPDATE subject_resources SET
-        chapter_id = COALESCE(?, chapter_id), category = COALESCE(?, category), title = COALESCE(?, title), r2_object_key = COALESCE(?, r2_object_key), is_public = COALESCE(?, is_public), price_in_inr = COALESCE(?, price_in_inr),
+        chapter_id = COALESCE(?, chapter_id), category = COALESCE(?, category), title = COALESCE(?, title),
+        external_url = COALESCE(?, external_url), thumbnail_url = COALESCE(?, thumbnail_url), description = COALESCE(?, description),
+        is_public = COALESCE(?, is_public), price_in_inr = COALESCE(?, price_in_inr),
         free_after_date = COALESCE(?, free_after_date), valid_from = COALESCE(?, valid_from), submission_deadline = COALESCE(?, submission_deadline), academic_year = COALESCE(?, academic_year), is_active = COALESCE(?, is_active)
       WHERE id = ?
     `).bind(
-      chapter_id ?? null, category ?? null, title ?? null, r2_object_key ?? null,
+      chapter_id ?? null, category ?? null, title ?? null,
+      external_url ?? null, thumbnail_url ?? null, description ?? null,
       is_public !== undefined ? (is_public ? 1 : 0) : null, price_in_inr ?? null,
       free_after_date ?? null, valid_from ?? null,
       submission_deadline ?? null, academic_year ?? null,

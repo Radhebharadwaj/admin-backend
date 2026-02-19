@@ -17,12 +17,12 @@
   //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   //   }
   // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "BUCKET",
-  //     "bucket_name": "quduhub-storage"
-  //   }
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "quduhub-storage"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
