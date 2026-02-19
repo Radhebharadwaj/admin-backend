@@ -38,11 +38,11 @@ app.use('/api/*', cors({
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization')
   let sessionToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
-  
+
   if (!sessionToken) {
     sessionToken = c.req.header('x-admin-token') || null
   }
-  
+
   // Dev fallback
   if (!sessionToken && c.env.SUPABASE_URL === 'dev') {
     c.set('teamMember', { id: "dev", email: "dev@quduhub.com", role: "SUPER_ADMIN", scope: "ALL", is_active: true })
@@ -55,22 +55,22 @@ const authMiddleware = async (c: any, next: any) => {
 
   try {
     const supabaseAdmin = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
-    
+
     // Validate JWT token
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(sessionToken)
-    
+
     if (authError || !user) {
       return c.json({ success: false, message: '401 Unauthorized — Invalid Token' }, 401)
     }
 
     // Root Admin Bypass
     if (c.env.ROOT_ADMIN_EMAIL && user.email?.toLowerCase() === c.env.ROOT_ADMIN_EMAIL.toLowerCase()) {
-      c.set('teamMember', { 
-        id: "root", 
-        email: user.email, 
-        role: "SUPER_ADMIN", 
-        scope: "ALL", 
-        is_active: true 
+      c.set('teamMember', {
+        id: "root",
+        email: user.email,
+        role: "SUPER_ADMIN",
+        scope: "ALL",
+        is_active: true
       })
       return await next()
     }
@@ -162,7 +162,7 @@ app.get('/api/admin/dropdown', async (c) => {
 // POST Publish Assignment
 app.post('/api/admin/publish', async (c) => {
   const teamMember = c.get('teamMember')
-  
+
   let formData: Record<string, any>
   try {
     formData = await c.req.parseBody()
@@ -181,6 +181,7 @@ app.post('/api/admin/publish', async (c) => {
     }, 403)
   }
 
+
   const subjectCode = formData.subject_code as string | undefined
   if (!subjectCode) {
     return c.json({ success: false, message: "Subject code is required." }, 400)
@@ -189,7 +190,7 @@ app.post('/api/admin/publish', async (c) => {
   const price = Number(formData.price || 49)
   const sessionYear = (formData.session_year as string) || "2026-27"
   const richTextContent = (formData.rich_text as string) || ""
-  
+
   const resourceFile = formData.resource_file as File | undefined
 
   let r2ObjectKey = ""
@@ -218,7 +219,7 @@ app.post('/api/admin/publish', async (c) => {
       const mimeToExt: Record<string, string> = { "application/pdf": "pdf", "application/json": "json" }
       const finalExt = mimeToExt[mimeType] || "pdf"
       r2ObjectKey = `assignments/${subjectCode}/${Date.now()}-${crypto.randomUUID()}.${finalExt}`
-      
+
       await r2.put(r2ObjectKey, await resourceFile.arrayBuffer(), {
         httpMetadata: { contentType: mimeType },
         customMetadata: { uploadedBy: teamMember.email, subjectCode, sessionYear },
@@ -236,13 +237,13 @@ app.post('/api/admin/publish', async (c) => {
         uploadedBy: teamMember.email, createdAt: new Date().toISOString(),
       })
       await r2.put(r2ObjectKey, payload, { httpMetadata: { contentType: "application/json" } })
-    } catch (e: any) {}
+    } catch (e: any) { }
   }
 
   // D1 Insert
   const assignmentId = crypto.randomUUID()
   const now = new Date().toISOString()
-  
+
   try {
     await c.env.DB.prepare(
       `INSERT INTO assignment_metadata
