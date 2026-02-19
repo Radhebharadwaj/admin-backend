@@ -11,19 +11,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # 1. Server par Node.js setup karo
+      # 1. PNPM setup karo
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          
+      # 2. Node.js setup karo (with pnpm cache)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
           
-      # 2. Saari dependencies install karo (Yahi kasht tha!)
+      # 3. Install dependencies using PNPM
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
         
-      # 3. Ab araam se deploy karo
+      # 4. Deploy to Cloudflare
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          packageManager: pnpm
