@@ -60,10 +60,10 @@ const authMiddleware = async (c: any, next: any) => {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(sessionToken)
 
     if (authError || !user) {
-      return c.json({ 
-        success: false, 
-        message: '401 Unauthorized — Invalid Token', 
-        debug: authError?.message || 'No user returned' 
+      return c.json({
+        success: false,
+        message: '401 Unauthorized — Invalid Token',
+        debug: authError?.message || 'No user returned'
       }, 401)
     }
 
@@ -103,7 +103,7 @@ app.get('/api/health', async (c) => {
   return c.json({
     status: 'ok',
     env: {
-      SUPABASE_URL: !!c.env.SUPABASE_URL,
+      SUPABASE_URL_PREFIX: c.env.SUPABASE_URL ? c.env.SUPABASE_URL.substring(0, 15) + '***' : 'NOT SET',
       SUPABASE_SERVICE_ROLE_KEY: !!c.env.SUPABASE_SERVICE_ROLE_KEY,
       ROOT_ADMIN_EMAIL: !!c.env.ROOT_ADMIN_EMAIL,
       ROOT_ADMIN_EMAIL_VALUE: c.env.ROOT_ADMIN_EMAIL ? c.env.ROOT_ADMIN_EMAIL.substring(0, 5) + '***' : 'NOT SET',
@@ -280,7 +280,7 @@ app.post('/api/admin/publish', async (c) => {
   }
 })
 
-// Mount sub-routers
+// Mount sub-routers 
 app.route('/api/team', teamRouter)
 
 export default app
