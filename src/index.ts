@@ -9,6 +9,7 @@ import subjectsRouter from './routes/subjects'
 import chaptersRouter from './routes/chapters'
 import resourcesRouter from './routes/resources'
 import uploadRouter from './routes/upload'
+import analyticsRouter from './routes/analytics'
 
 export type Bindings = {
   DB: D1Database
@@ -184,6 +185,7 @@ app.use('/api/resources/*', authMiddleware)
 app.use('/api/resources', authMiddleware)
 app.use('/api/upload/*', authMiddleware)
 app.use('/api/upload', authMiddleware)
+app.use('/api/analytics', authMiddleware)
 
 // RBAC Middleware
 export const requireRole = (allowedRoles: string[]) => async (c: any, next: any) => {
@@ -219,7 +221,6 @@ app.get('/api/admin/me', async (c) => {
 app.get('/api/admin/dashboard', async (c) => {
   try {
     const db = c.env.DB
-    // Removed purchases query since table doesn't exist yet
     const [uniRes, courseRes, subjRes] = await db.batch([
       db.prepare("SELECT COUNT(*) as count FROM universities"),
       db.prepare("SELECT COUNT(*) as count FROM courses"),
@@ -227,10 +228,20 @@ app.get('/api/admin/dashboard', async (c) => {
     ])
 
     let teamCount = 0
+    let totalSales = 0
     try {
       const supabaseAdmin = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY)
       const { count } = await supabaseAdmin.from('team_members').select('*', { count: 'exact', head: true })
       teamCount = count || 0
+
+      // Fetch real revenue from purchases
+      const { data: salesData } = await supabaseAdmin
+        .from('purchases')
+        .select('amount_paid')
+        .eq('payment_status', 'SUCCESS')
+      if (salesData) {
+        totalSales = salesData.reduce((sum: number, row: any) => sum + (row.amount_paid || 0), 0)
+      }
     } catch (e) { }
 
     return c.json({
@@ -240,7 +251,7 @@ app.get('/api/admin/dashboard', async (c) => {
         courses: (courseRes.results[0] as any)?.count || 0,
         subjects: (subjRes.results[0] as any)?.count || 0,
         teamMembers: teamCount,
-        totalSales: 0 // Hardcoded to 0 until purchases table is created
+        totalSales
       }
     })
   } catch (error: any) {
@@ -392,5 +403,6 @@ app.route('/api/subjects', subjectsRouter)
 app.route('/api/chapters', chaptersRouter)
 app.route('/api/resources', resourcesRouter)
 app.route('/api/upload', uploadRouter)
+app.route('/api/analytics', analyticsRouter)
 
 export default app
