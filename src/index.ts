@@ -13,6 +13,7 @@ import analyticsRouter from './routes/analytics'
 import paymentsRouter from './routes/payments'
 import studentRouter from './routes/student'
 import publicRouter from './routes/public'
+import internalRouter from './routes/internal'
 
 export type Bindings = {
   DB: D1Database
@@ -23,6 +24,7 @@ export type Bindings = {
   RAZORPAY_KEY_ID: string
   RAZORPAY_KEY_SECRET: string
   PUBLIC_R2_URL?: string
+  INTERNAL_API_SECRET: string
 }
 
 export type Variables = {
@@ -442,5 +444,6 @@ app.route('/api/analytics', analyticsRouter)
 app.route('/api/payments', paymentsRouter)
 app.route('/api/student', studentRouter)
 app.route('/api/public', publicRouter)
+app.route('/api/internal', internalRouter)
 
 export default app
