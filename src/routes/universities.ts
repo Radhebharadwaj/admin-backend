@@ -15,6 +15,7 @@ const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 const universitySchema = z.object({
   name: z.string().max(150),
   slug: z.string().max(150).regex(/^[a-z0-9-]+$/, "Invalid slug format. Use only lowercase letters, numbers, and hyphens."),
+  acronym: z.string().max(50).nullable().optional(),
   website_url: z.string().url().max(255).nullable().optional().or(z.literal("")),
   logo_url: z.string().max(500).nullable().optional().or(z.literal("")),
   search_aliases: z.string().max(150).nullable().optional().or(z.literal("")),
@@ -48,14 +49,14 @@ router.get('/:id', async (c) => {
 // POST /api/universities
 router.post('/', zValidator('json', universitySchema, handleZodError), async (c) => {
   try {
-    const { name, slug, website_url, logo_url, search_aliases } = c.req.valid('json')
+    const { name, slug, acronym, website_url, logo_url, search_aliases } = c.req.valid('json')
 
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
-      'INSERT INTO universities (id, name, slug, website_url, logo_url, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
-    ).bind(id, name, slug, website_url || null, logo_url || null, search_aliases || '').run()
+      'INSERT INTO universities (id, name, slug, acronym, website_url, logo_url, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)'
+    ).bind(id, name, slug, acronym || null, website_url || null, logo_url || null, search_aliases || '').run()
 
-    return c.json({ success: true, message: 'University created', data: { id, name, slug } })
+    return c.json({ success: true, message: 'University created', data: { id, name, slug, acronym } })
   } catch (error: any) {
     if (error.message?.includes('UNIQUE constraint')) {
       return c.json({ success: false, message: 'A university with this slug already exists' }, 400)
@@ -68,11 +69,11 @@ router.post('/', zValidator('json', universitySchema, handleZodError), async (c)
 router.patch('/:id', zValidator('json', universitySchema, handleZodError), async (c) => {
   try {
     const id = c.req.param('id')
-    const { name, slug, website_url, logo_url, search_aliases, is_active } = c.req.valid('json')
+    const { name, slug, acronym, website_url, logo_url, search_aliases, is_active } = c.req.valid('json')
 
     await c.env.DB.prepare(
-      'UPDATE universities SET name = ?, slug = ?, website_url = ?, logo_url = ?, search_aliases = ?, is_active = ? WHERE id = ?'
-    ).bind(name, slug, website_url || null, logo_url || null, search_aliases || '', is_active ?? 1, id).run()
+      'UPDATE universities SET name = ?, slug = ?, acronym = ?, website_url = ?, logo_url = ?, search_aliases = ?, is_active = ? WHERE id = ?'
+    ).bind(name, slug, acronym || null, website_url || null, logo_url || null, search_aliases || '', is_active ?? 1, id).run()
 
     return c.json({ success: true, message: 'University updated' })
   } catch (error: any) {

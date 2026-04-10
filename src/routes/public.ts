@@ -38,7 +38,11 @@ router.get('/search', async (c) => {
       } catch (e) {}
 
       if (row.entity_type === 'university') {
-        grouped.universities.push({ name: row.title, slug: params.slug || row.entity_id });
+        grouped.universities.push({ 
+          acronym: row.title !== row.subtitle ? row.title : null, 
+          name: row.subtitle, 
+          slug: params.slug || row.entity_id 
+        });
       } else if (row.entity_type === 'course') {
         grouped.courses.push({ name: row.title, slug: params.slug, university_slug: params.university_slug });
       } else if (row.entity_type === 'subject') {
@@ -101,7 +105,7 @@ router.get('/subject/:subjectCode', async (c) => {
 router.get('/universities', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT id, name, slug, logo_url, search_aliases FROM universities WHERE is_active = 1 ORDER BY name ASC'
+      'SELECT id, name, acronym, slug, logo_url, search_aliases FROM universities WHERE is_active = 1 ORDER BY name ASC'
     ).all()
     return c.json(results)
   } catch (error: any) {
