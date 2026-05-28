@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
+import { extractMediaKeys } from '../utils/mediaSync'
 
 const handleZodError = (result: any, c: any) => {
   if (!result.success) {
@@ -143,6 +144,34 @@ router.patch('/:id', zValidator('json', subjectSchema, handleZodError), async (c
 router.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    
+    // Nuclear Wipe: Cleanup all resources media across the entire subject
+    const resources = await c.env.DB.prepare('SELECT rich_text_content, thumbnail_url, r2_object_key FROM subject_resources WHERE subject_id = ?').bind(id).all();
+    if (resources && resources.results.length > 0 && c.env.BUCKET) {
+      const keysToDelete: string[] = [];
+      for (const res of resources.results) {
+        if (res.rich_text_content) keysToDelete.push(...extractMediaKeys(res.rich_text_content as string));
+        if (res.thumbnail_url) {
+          let k = res.thumbnail_url as string;
+          if (k.startsWith('http')) { try { k = new URL(k).pathname.replace(/^\//, ''); } catch(e){} }
+          keysToDelete.push(k);
+        }
+        if (res.r2_object_key) {
+          let k = res.r2_object_key as string;
+          if (k.startsWith('http')) { try { k = new URL(k).pathname.replace(/^\//, ''); } catch(e){} }
+          keysToDelete.push(k);
+        }
+      }
+      
+      const validKeys = [...new Set(keysToDelete)].filter(k => k && k.trim() !== '');
+      if (validKeys.length > 0) {
+        const bucket = c.env.BUCKET;
+        c.executionCtx.waitUntil(
+          Promise.all(validKeys.map(key => bucket.delete(key).catch(e => console.error(`[MediaSync] Failed subject wipe:`, e))))
+        );
+      }
+    }
+
     await c.env.DB.prepare('PRAGMA foreign_keys = ON').run()
     await c.env.DB.prepare('DELETE FROM subjects WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Subject and all related resources deleted' })

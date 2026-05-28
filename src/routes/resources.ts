@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
+import { requireRole } from '../utils/auth'
+import { findOrphanedKeys, extractMediaKeys } from '../utils/mediaSync'
 import { checkResourceAccess } from '../utils/access'
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -117,11 +119,52 @@ router.patch('/:id', async (c) => {
             oldKey = oldKey.replace(/^\//, '');
           }
           
-          if (oldKey) {
-            await c.env.BUCKET?.delete(oldKey);
+          if (oldKey && c.env.BUCKET) {
+            c.executionCtx.waitUntil(
+              c.env.BUCKET.delete(oldKey).catch(e => console.error('[MediaSync] Failed to delete old thumbnail:', e))
+            );
           }
         } catch (e) {
           console.error('Failed to parse or delete old thumbnail from R2:', e);
+        }
+      }
+    }
+
+    // Garbage Collection: Deep Media Sync for rich_text_content
+    if (rich_text_content !== undefined) {
+      const oldResource = await c.env.DB.prepare('SELECT rich_text_content FROM subject_resources WHERE id = ?').bind(id).first();
+      if (oldResource && oldResource.rich_text_content !== rich_text_content) {
+        const orphanedKeys = findOrphanedKeys(oldResource.rich_text_content as string, rich_text_content);
+        if (orphanedKeys.length > 0 && c.env.BUCKET) {
+          const bucket = c.env.BUCKET;
+          c.executionCtx.waitUntil(
+            Promise.all(orphanedKeys.map(key => 
+              bucket.delete(key).catch(e => console.error(`[MediaSync] Failed to delete orphaned media ${key}:`, e))
+            ))
+          );
+        }
+      }
+    }
+
+    // Garbage Collection: Delete old r2_object_key if a new one is provided
+    if (r2_object_key !== undefined) {
+      const oldResource = await c.env.DB.prepare('SELECT r2_object_key FROM subject_resources WHERE id = ?').bind(id).first();
+      if (oldResource && oldResource.r2_object_key && oldResource.r2_object_key !== r2_object_key) {
+        let oldKey = oldResource.r2_object_key as string;
+        try {
+          if (oldKey.startsWith('http')) {
+            const urlObj = new URL(oldKey);
+            oldKey = urlObj.pathname.replace(/^\//, '');
+          } else {
+            oldKey = oldKey.replace(/^\//, '');
+          }
+          if (oldKey && c.env.BUCKET) {
+            c.executionCtx.waitUntil(
+              c.env.BUCKET.delete(oldKey).catch(e => console.error('[MediaSync] Failed to delete old r2_object_key:', e))
+            );
+          }
+        } catch (e) {
+          console.error('Failed to parse or delete old r2_object_key from R2:', e);
         }
       }
     }
@@ -157,6 +200,43 @@ router.patch('/:id', async (c) => {
 router.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    
+    // Deep Media Sync: Cleanup all attached files before deleting resource
+    const oldResource = await c.env.DB.prepare('SELECT rich_text_content, thumbnail_url, r2_object_key FROM subject_resources WHERE id = ?').bind(id).first();
+    if (oldResource && c.env.BUCKET) {
+      const keysToDelete: string[] = [];
+      
+      if (oldResource.rich_text_content) {
+        keysToDelete.push(...extractMediaKeys(oldResource.rich_text_content as string));
+      }
+      
+      if (oldResource.thumbnail_url) {
+        let oldKey = oldResource.thumbnail_url as string;
+        if (oldKey.startsWith('http')) {
+          try {
+            oldKey = new URL(oldKey).pathname.replace(/^\//, '');
+          } catch (e) {}
+        }
+        keysToDelete.push(oldKey);
+      }
+      
+      if (oldResource.r2_object_key) {
+        keysToDelete.push(oldResource.r2_object_key as string);
+      }
+      
+      // Filter out invalid keys just in case
+      const validKeys = [...new Set(keysToDelete)].filter(k => k && k.trim() !== '');
+      
+      if (validKeys.length > 0) {
+        const bucket = c.env.BUCKET;
+        c.executionCtx.waitUntil(
+          Promise.all(validKeys.map(key => 
+            bucket.delete(key).catch(e => console.error(`[MediaSync] Failed to delete resource media ${key}:`, e))
+          ))
+        );
+      }
+    }
+
     await c.env.DB.prepare('DELETE FROM subject_resources WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Resource deleted' })
   } catch (error: any) {

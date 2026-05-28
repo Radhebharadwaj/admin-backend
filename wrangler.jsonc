@@ -11,8 +11,7 @@
     "SUPABASE_URL": "https://hcamaaujsveuexunvarm.supabase.co",
     "ROOT_ADMIN_EMAIL": "radhebw@gmail.com",
     "RAZORPAY_KEY_ID": "rzp_test_placeholder",
-    "RAZORPAY_KEY_SECRET": "secret_placeholder",
-    "PUBLIC_R2_URL": "http://127.0.0.1:8787/api/media"
+    "RAZORPAY_KEY_SECRET": "secret_placeholder"
   },
   // "kv_namespaces": [
   //   {

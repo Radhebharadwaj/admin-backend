@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
+import { extractMediaKeys } from '../utils/mediaSync'
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -85,6 +86,34 @@ router.patch('/:id', async (c) => {
 router.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    
+    // Deep Cascading Wipe: Cleanup all resources media before deleting chapter
+    const resources = await c.env.DB.prepare('SELECT rich_text_content, thumbnail_url, r2_object_key FROM subject_resources WHERE chapter_id = ?').bind(id).all();
+    if (resources && resources.results.length > 0 && c.env.BUCKET) {
+      const keysToDelete: string[] = [];
+      for (const res of resources.results) {
+        if (res.rich_text_content) keysToDelete.push(...extractMediaKeys(res.rich_text_content as string));
+        if (res.thumbnail_url) {
+          let k = res.thumbnail_url as string;
+          if (k.startsWith('http')) { try { k = new URL(k).pathname.replace(/^\//, ''); } catch(e){} }
+          keysToDelete.push(k);
+        }
+        if (res.r2_object_key) {
+          let k = res.r2_object_key as string;
+          if (k.startsWith('http')) { try { k = new URL(k).pathname.replace(/^\//, ''); } catch(e){} }
+          keysToDelete.push(k);
+        }
+      }
+      
+      const validKeys = [...new Set(keysToDelete)].filter(k => k && k.trim() !== '');
+      if (validKeys.length > 0) {
+        const bucket = c.env.BUCKET;
+        c.executionCtx.waitUntil(
+          Promise.all(validKeys.map(key => bucket.delete(key).catch(e => console.error(`[MediaSync] Failed chapter wipe:`, e))))
+        );
+      }
+    }
+
     await c.env.DB.prepare('DELETE FROM chapters WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Chapter deleted' })
   } catch (error: any) {
