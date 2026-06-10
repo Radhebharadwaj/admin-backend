@@ -207,22 +207,31 @@ app.get('/api/proxy-resource', async (c) => {
 })
 
 app.get('/api/media/*', async (c) => {
-  const r2 = c.env.BUCKET
-  if (!r2) return c.text('R2 Bucket not configured', 500)
+  try {
+    const r2 = c.env.BUCKET
+    if (!r2) return c.text('R2 Bucket not configured', 500)
 
-  const url = new URL(c.req.url)
-  const objectKey = decodeURIComponent(url.pathname.replace('/api/media/', ''))
-  
-  const object = await r2.get(objectKey)
-  if (!object) return c.text('Not Found', 404)
+    const url = new URL(c.req.url)
+    const objectKey = decodeURIComponent(url.pathname.replace('/api/media/', ''))
+    
+    const object = await r2.get(objectKey)
+    if (!object) return c.text('Not Found', 404)
 
-  const headers = new Headers()
-  object.writeHttpMetadata(headers as any)
-  headers.set('etag', object.httpEtag)
-  headers.set('Access-Control-Allow-Origin', '*')
-  headers.set('Cache-Control', 'public, max-age=31536000')
+    const headers = new Headers()
+    object.writeHttpMetadata(headers as any)
+    if (object.httpMetadata?.contentType) {
+      headers.set('Content-Type', object.httpMetadata.contentType)
+    }
+    headers.set('etag', object.httpEtag)
+    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Cache-Control', 'public, max-age=31536000')
 
-  return new Response(object.body as any, { headers })
+    // @ts-ignore - Hono c.body accepts ReadableStream in Cloudflare Workers
+    return c.body(object.body, 200, Object.fromEntries(headers.entries()))
+  } catch (err: any) {
+    console.error("Media Error:", err);
+    return c.text(err.message, 500);
+  }
 })
 
 // === PROTECTED ROUTES ===
