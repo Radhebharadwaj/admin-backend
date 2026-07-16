@@ -118,7 +118,7 @@ router.patch('/:id', async (c) => {
           }
           
           if (oldKey) {
-            await c.env.BUCKET.delete(oldKey);
+            await c.env.BUCKET?.delete(oldKey);
           }
         } catch (e) {
           console.error('Failed to parse or delete old thumbnail from R2:', e);

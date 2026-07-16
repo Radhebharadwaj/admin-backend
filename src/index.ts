@@ -63,7 +63,7 @@ app.use('/api/*', async (c, next) => {
       maxAge: 600,
     })(c, next)
   }
-  
+
   return await cors({
     origin: allowedOrigin,
     allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
@@ -188,7 +188,7 @@ app.get('/api/proxy-resource', async (c) => {
     })
 
     if (!response.ok) {
-      return c.json({ success: false, message: `Failed to fetch external resource: ${response.statusText}` }, response.status)
+      return c.json({ success: false, message: `Failed to fetch external resource: ${response.statusText}` }, response.status as any)
     }
 
     const contentType = response.headers.get('Content-Type') || 'application/pdf'
@@ -213,7 +213,7 @@ app.get('/api/media/*', async (c) => {
 
     const objectKey = c.req.param('*')
     if (!objectKey) return c.text('Invalid object key', 400)
-    
+
     const object = await r2.get(objectKey)
     if (!object) return c.text('Not Found', 404)
 
