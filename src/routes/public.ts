@@ -44,7 +44,12 @@ router.get('/search', async (c) => {
           slug: params.slug || row.entity_id 
         });
       } else if (row.entity_type === 'course') {
-        grouped.courses.push({ name: row.title, slug: params.slug, university_slug: params.university_slug });
+        grouped.courses.push({ 
+          acronym: row.title !== row.subtitle ? row.title : null,
+          name: row.subtitle, 
+          slug: params.slug, 
+          university_slug: params.university_slug 
+        });
       } else if (row.entity_type === 'subject') {
         grouped.subjects.push({ subject_code: row.subtitle, subject_name: row.title, course_slug: params.course_slug, university_slug: params.university_slug });
       }
@@ -118,7 +123,7 @@ router.get('/universities/:univSlug/courses', async (c) => {
   try {
     const univSlug = c.req.param('univSlug')
     const { results } = await c.env.DB.prepare(`
-      SELECT c.id, c.name, c.slug, c.duration_years, c.search_aliases
+      SELECT c.id, c.name, c.acronym, c.slug, c.duration_years, c.search_aliases
       FROM courses c 
       INNER JOIN universities u ON c.university_id = u.id 
       WHERE u.slug = ? AND c.is_active = 1 
@@ -135,15 +140,19 @@ router.get('/universities/:univSlug/courses', async (c) => {
 router.get('/courses/:courseSlug/semesters', async (c) => {
   try {
     const courseSlug = c.req.param('courseSlug')
-    const { results } = await c.env.DB.prepare(`
-      SELECT DISTINCT semester 
-      FROM subjects s 
-      INNER JOIN courses c ON s.course_id = c.id 
-      WHERE c.slug = ? 
-      ORDER BY semester ASC
-    `).bind(courseSlug).all()
+    const course: any = await c.env.DB.prepare(
+      'SELECT total_semesters FROM courses WHERE slug = ? AND is_active = 1'
+    ).bind(courseSlug).first()
     
-    // results is an array of objects like { semester: 1 }, { semester: 2 }
+    if (!course) {
+      return c.json([])
+    }
+    
+    const results = []
+    for (let i = 1; i <= course.total_semesters; i++) {
+      results.push({ semester_number: i, slug: i.toString() })
+    }
+    
     return c.json(results)
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
