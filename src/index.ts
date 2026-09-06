@@ -40,7 +40,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 // ==========================================
 // CORS Middleware
 app.use('/api/*', cors({
-  origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev'],
+  origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev', 'https://qudu.in', 'https://quduhub.pages.dev'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
   allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
   exposeHeaders: ['Content-Length'],
