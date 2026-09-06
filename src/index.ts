@@ -12,6 +12,7 @@ import uploadRouter from './routes/upload'
 import analyticsRouter from './routes/analytics'
 import paymentsRouter from './routes/payments'
 import studentRouter from './routes/student'
+import publicRouter from './routes/public'
 
 export type Bindings = {
   DB: D1Database
@@ -35,18 +36,26 @@ export type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// ==========================================
-// Middleware Configuration
-// ==========================================
-// CORS Middleware
-app.use('/api/*', cors({
-  origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev', 'https://qudu.in', 'https://quduhub.pages.dev'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
-  allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
-  exposeHeaders: ['Content-Length'],
-  maxAge: 600,
-  credentials: true,
-}))
+// CORS Middleware (Strict Isolation)
+app.use('/api/*', async (c, next) => {
+  if (c.req.path.startsWith('/api/public')) {
+    return await cors({
+      origin: ['http://localhost:3000', 'https://qudu.in'],
+      allowHeaders: ['Content-Type'],
+      allowMethods: ['GET', 'OPTIONS'],
+      maxAge: 600,
+    })(c, next)
+  }
+  
+  return await cors({
+    origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev', 'https://qudu.in', 'https://quduhub.pages.dev'],
+    allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+    allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: true,
+  })(c, next)
+})
 
 // Auth Middleware logic
 const authMiddleware = async (c: any, next: any) => {
@@ -417,5 +426,6 @@ app.route('/api/upload', uploadRouter)
 app.route('/api/analytics', analyticsRouter)
 app.route('/api/payments', paymentsRouter)
 app.route('/api/student', studentRouter)
+app.route('/api/public', publicRouter)
 
 export default app
