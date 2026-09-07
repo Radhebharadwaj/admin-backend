@@ -9,20 +9,44 @@ router.get('/search', async (c) => {
     const q = c.req.query('q')
     if (!q || q.length < 2) return c.json({ success: true, data: [] })
 
-    const { results } = await c.env.DB.prepare(`
-      SELECT 
-        s.id, s.subject_code, s.name as subject_name, s.semester, s.search_aliases as subject_search_aliases,
-        c.id as course_id, c.name as course_name, c.slug as course_slug, c.search_aliases as course_search_aliases,
-        u.id as university_id, u.name as university_name, u.slug as university_slug, u.search_aliases as university_search_aliases
-      FROM subjects s
-      JOIN courses c ON s.course_id = c.id
-      JOIN universities u ON c.university_id = u.id
-      WHERE s.subject_code LIKE ? OR s.name LIKE ? OR s.search_aliases LIKE ?
-      ORDER BY s.subject_code ASC
-      LIMIT 50
-    `).bind(`%${q}%`, `%${q}%`, `%${q}%`).all()
+    // Sanitize and format the query for FTS5
+    // Example: "delhi university" -> "delhi* AND university*"
+    const sanitizedQuery = q
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
+      .trim()
+      .split(/\s+/) // Split by spaces
+      .filter(term => term.length > 0)
+      .map(term => `${term}*`) // Append wildcard to each term for prefix matching
+      .join(' AND ')
 
-    return c.json({ success: true, data: results })
+    if (!sanitizedQuery) return c.json({ success: true, data: [] })
+
+    const { results } = await c.env.DB.prepare(`
+      SELECT entity_id, entity_type, title, subtitle, search_aliases, route_params
+      FROM global_search_index
+      WHERE global_search_index MATCH ?
+      ORDER BY rank
+      LIMIT 50
+    `).bind(sanitizedQuery).all()
+
+    const grouped: any = { universities: [], courses: [], subjects: [] };
+
+    results.forEach((row: any) => {
+      let params: any = {};
+      try {
+        if (row.route_params) params = JSON.parse(row.route_params as string);
+      } catch (e) {}
+
+      if (row.entity_type === 'university') {
+        grouped.universities.push({ name: row.title, slug: params.slug || row.entity_id });
+      } else if (row.entity_type === 'course') {
+        grouped.courses.push({ name: row.title, slug: params.slug, university_slug: params.university_slug });
+      } else if (row.entity_type === 'subject') {
+        grouped.subjects.push({ subject_code: row.subtitle, subject_name: row.title, course_slug: params.course_slug, university_slug: params.university_slug });
+      }
+    });
+
+    return c.json({ success: true, results: grouped })
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
   }
@@ -77,7 +101,7 @@ router.get('/subject/:subjectCode', async (c) => {
 router.get('/universities', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT id, name, slug, icon, short_name, search_aliases FROM universities WHERE is_active = true ORDER BY name ASC'
+      'SELECT id, name, slug, icon, short_name, search_aliases FROM universities WHERE is_active = 1 ORDER BY name ASC'
     ).all()
     return c.json(results)
   } catch (error: any) {
@@ -93,7 +117,7 @@ router.get('/universities/:univSlug/courses', async (c) => {
       SELECT c.id, c.name, c.slug, c.duration_years, c.search_aliases
       FROM courses c 
       INNER JOIN universities u ON c.university_id = u.id 
-      WHERE u.slug = ? AND c.is_active = true 
+      WHERE u.slug = ? AND c.is_active = 1 
       ORDER BY c.name ASC
     `).bind(univSlug).all()
     
