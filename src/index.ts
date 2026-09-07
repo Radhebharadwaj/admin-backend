@@ -38,9 +38,23 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // CORS Middleware (Strict Isolation)
 app.use('/api/*', async (c, next) => {
+  const allowedOrigin = (origin: string | undefined) => {
+    if (!origin) return 'https://qudu.in'
+    if (
+      origin === 'http://localhost:3000' ||
+      origin === 'https://qudu.in' ||
+      origin === 'https://admin.quduhub.com' ||
+      /^https:\/\/qudu(-hub)?.*\.pages\.dev$/.test(origin) ||
+      /^https:\/\/qudu-frontend.*\.vercel\.app$/.test(origin)
+    ) {
+      return origin
+    }
+    return 'https://qudu.in'
+  }
+
   if (c.req.path.startsWith('/api/public')) {
     return await cors({
-      origin: ['http://localhost:3000', 'https://qudu.in'],
+      origin: allowedOrigin,
       allowHeaders: ['Content-Type'],
       allowMethods: ['GET', 'OPTIONS'],
       maxAge: 600,
@@ -48,7 +62,7 @@ app.use('/api/*', async (c, next) => {
   }
   
   return await cors({
-    origin: ['http://localhost:3000', 'https://admin.quduhub.com', 'https://qudu.pages.dev', 'https://qudu.in', 'https://quduhub.pages.dev'],
+    origin: allowedOrigin,
     allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
     allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['Content-Length'],
