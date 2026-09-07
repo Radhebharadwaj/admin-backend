@@ -11,16 +11,16 @@ router.get('/search', async (c) => {
 
     const { results } = await c.env.DB.prepare(`
       SELECT 
-        s.id, s.subject_code, s.name as subject_name, s.semester,
-        c.id as course_id, c.name as course_name, c.slug as course_slug,
-        u.id as university_id, u.name as university_name, u.slug as university_slug
+        s.id, s.subject_code, s.name as subject_name, s.semester, s.search_aliases as subject_search_aliases,
+        c.id as course_id, c.name as course_name, c.slug as course_slug, c.search_aliases as course_search_aliases,
+        u.id as university_id, u.name as university_name, u.slug as university_slug, u.search_aliases as university_search_aliases
       FROM subjects s
       JOIN courses c ON s.course_id = c.id
       JOIN universities u ON c.university_id = u.id
-      WHERE s.subject_code LIKE ? OR s.name LIKE ?
+      WHERE s.subject_code LIKE ? OR s.name LIKE ? OR s.search_aliases LIKE ?
       ORDER BY s.subject_code ASC
       LIMIT 50
-    `).bind(`%${q}%`, `%${q}%`).all()
+    `).bind(`%${q}%`, `%${q}%`, `%${q}%`).all()
 
     return c.json({ success: true, data: results })
   } catch (error: any) {
@@ -77,7 +77,7 @@ router.get('/subject/:subjectCode', async (c) => {
 router.get('/universities', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT id, name, slug, icon, short_name FROM universities WHERE is_active = true ORDER BY name ASC'
+      'SELECT id, name, slug, icon, short_name, search_aliases FROM universities WHERE is_active = true ORDER BY name ASC'
     ).all()
     return c.json(results)
   } catch (error: any) {
@@ -90,7 +90,7 @@ router.get('/universities/:univSlug/courses', async (c) => {
   try {
     const univSlug = c.req.param('univSlug')
     const { results } = await c.env.DB.prepare(`
-      SELECT c.id, c.name, c.slug, c.duration_years 
+      SELECT c.id, c.name, c.slug, c.duration_years, c.search_aliases
       FROM courses c 
       INNER JOIN universities u ON c.university_id = u.id 
       WHERE u.slug = ? AND c.is_active = true 
