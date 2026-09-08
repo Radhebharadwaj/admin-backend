@@ -101,7 +101,7 @@ router.get('/subject/:subjectCode', async (c) => {
 router.get('/universities', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT id, name, slug, icon, short_name, search_aliases FROM universities WHERE is_active = 1 ORDER BY name ASC'
+      'SELECT id, name, slug, logo_url, search_aliases FROM universities WHERE is_active = 1 ORDER BY name ASC'
     ).all()
     return c.json(results)
   } catch (error: any) {
