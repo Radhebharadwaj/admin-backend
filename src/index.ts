@@ -206,7 +206,24 @@ app.get('/api/proxy-resource', async (c) => {
   }
 })
 
-// Apply Auth Middleware
+app.get('/api/media/*', async (c) => {
+  const r2 = c.env.BUCKET
+  if (!r2) return c.text('R2 Bucket not configured', 500)
+
+  const url = new URL(c.req.url)
+  const objectKey = decodeURIComponent(url.pathname.replace('/api/media/', ''))
+  
+  const object = await r2.get(objectKey)
+  if (!object) return c.text('Not Found', 404)
+
+  const headers = new Headers()
+  object.writeHttpMetadata(headers as any)
+  headers.set('etag', object.httpEtag)
+
+  return new Response(object.body as any, { headers })
+})
+
+// === PROTECTED ROUTES ===
 app.use('/api/admin/*', authMiddleware)
 app.use('/api/team/*', authMiddleware)
 app.use('/api/team', authMiddleware)
