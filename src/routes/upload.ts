@@ -98,7 +98,11 @@ const ALLOWED_DOC_TYPES = new Set([
   'video/mp4',
   'video/webm',
   'application/epub+zip',
-  'application/zip'
+  'application/zip',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml'
 ])
 
 // POST /api/upload/document
