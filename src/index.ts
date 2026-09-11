@@ -219,6 +219,8 @@ app.get('/api/media/*', async (c) => {
   const headers = new Headers()
   object.writeHttpMetadata(headers as any)
   headers.set('etag', object.httpEtag)
+  headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Cache-Control', 'public, max-age=31536000')
 
   return new Response(object.body as any, { headers })
 })

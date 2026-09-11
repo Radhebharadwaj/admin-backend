@@ -75,7 +75,8 @@ router.post('/media', async (c) => {
       },
     })
 
-    const baseUrl = c.env.PUBLIC_R2_URL || 'https://pub-quduhub-r2.dev';
+    const workerOrigin = new URL(c.req.url).origin;
+    const baseUrl = c.env.PUBLIC_R2_URL || `${workerOrigin}/api/media`;
     const finalUrl = `${baseUrl.replace(/\/+$/, '')}/${objectKey}`;
 
     return c.json({
