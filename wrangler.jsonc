@@ -22,7 +22,8 @@
   "r2_buckets": [
     {
       "binding": "BUCKET",
-      "bucket_name": "quduhub-storage"
+      "bucket_name": "quduhub-storage",
+      "PUBLIC_R2_URL": "https://cdn.qudu.in"
     }
   ],
   "d1_databases": [

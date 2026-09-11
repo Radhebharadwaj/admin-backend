@@ -211,7 +211,9 @@ app.get('/api/media/*', async (c) => {
     const r2 = c.env.BUCKET
     if (!r2) return c.text('R2 Bucket not configured', 500)
 
-    const objectKey = c.req.param('*')
+    const urlObj = new URL(c.req.url)
+    const objectKey = decodeURIComponent(urlObj.pathname.replace('/api/media/', ''))
+    
     if (!objectKey) return c.text('Invalid object key', 400)
 
     const object = await r2.get(objectKey)
