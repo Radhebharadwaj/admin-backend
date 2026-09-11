@@ -211,8 +211,8 @@ app.get('/api/media/*', async (c) => {
     const r2 = c.env.BUCKET
     if (!r2) return c.text('R2 Bucket not configured', 500)
 
-    const url = new URL(c.req.url)
-    const objectKey = decodeURIComponent(url.pathname.replace('/api/media/', ''))
+    const objectKey = c.req.param('*')
+    if (!objectKey) return c.text('Invalid object key', 400)
     
     const object = await r2.get(objectKey)
     if (!object) return c.text('Not Found', 404)
@@ -221,13 +221,14 @@ app.get('/api/media/*', async (c) => {
     object.writeHttpMetadata(headers as any)
     if (object.httpMetadata?.contentType) {
       headers.set('Content-Type', object.httpMetadata.contentType)
+    } else {
+      headers.set('Content-Type', 'application/octet-stream')
     }
     headers.set('etag', object.httpEtag)
     headers.set('Access-Control-Allow-Origin', '*')
     headers.set('Cache-Control', 'public, max-age=31536000')
 
-    // @ts-ignore - Hono c.body accepts ReadableStream in Cloudflare Workers
-    return c.body(object.body, 200, Object.fromEntries(headers.entries()))
+    return new Response(object.body as any, { headers })
   } catch (err: any) {
     console.error("Media Error:", err);
     return c.text(err.message, 500);
