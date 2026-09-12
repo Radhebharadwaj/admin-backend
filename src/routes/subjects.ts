@@ -110,7 +110,7 @@ router.post('/', zValidator('json', subjectSchema, handleZodError), async (c) =>
     const id = crypto.randomUUID()
     await c.env.DB.prepare(
       'INSERT INTO subjects (id, subject_code, name, course_id, semester, search_aliases) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(id, subject_code, name, course_id, parseInt(semester), search_aliases || '').run()
+    ).bind(id, subject_code, name, course_id, parseInt(String(semester)), search_aliases || '').run()
 
     return c.json({ success: true, message: 'Subject created', data: { id, subject_code, name, course_id, semester } })
   } catch (error: any) {
@@ -129,7 +129,7 @@ router.patch('/:id', zValidator('json', subjectSchema, handleZodError), async (c
 
     await c.env.DB.prepare(
       'UPDATE subjects SET subject_code = ?, name = ?, semester = ?, search_aliases = ? WHERE id = ?'
-    ).bind(subject_code, name, parseInt(semester), search_aliases || '', id).run()
+    ).bind(subject_code, name, parseInt(String(semester)), search_aliases || '', id).run()
 
     return c.json({ success: true, message: 'Subject updated' })
   } catch (error: any) {

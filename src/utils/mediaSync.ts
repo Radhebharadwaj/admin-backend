@@ -26,6 +26,11 @@ export function extractMediaKeys(jsonStr: string | null | undefined): string[] {
               const key = decodeURIComponent(urlObj.pathname.split('/api/media/')[1]);
               if (key) keys.push(key);
             } 
+            // Handle CDN domain directly
+            else if (urlObj.hostname.includes('cdn.qudu.in')) {
+              const key = decodeURIComponent(urlObj.pathname.replace(/^\//, ''));
+              if (key) keys.push(key);
+            }
             // Handle any legacy direct r2.dev URLs if they exist
             else if (urlObj.hostname.includes('r2.dev')) {
               const key = decodeURIComponent(urlObj.pathname.replace(/^\//, ''));

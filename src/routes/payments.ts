@@ -38,7 +38,7 @@ router.post('/create-order', async (c) => {
       return c.json({ success: false, message: 'Resource not found' }, 404)
     }
 
-    if (!resource.price_in_paise || resource.price_in_paise <= 0) {
+    if (!resource.price_in_paise || Number(resource.price_in_paise) <= 0) {
       return c.json({ success: false, message: 'Resource is free' }, 400)
     }
 

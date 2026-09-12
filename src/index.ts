@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { runGarbageCollection } from './utils/cron'
 import { createClient } from '@supabase/supabase-js'
 
 import teamRouter from './routes/team'
@@ -476,5 +477,9 @@ app.route('/api/payments', paymentsRouter)
 app.route('/api/student', studentRouter)
 app.route('/api/public', publicRouter)
 app.route('/api/internal', internalRouter)
-
-export default app
+export default {
+  fetch: app.fetch,
+  async scheduled(event: any, env: Bindings, ctx: any) {
+    ctx.waitUntil(runGarbageCollection(env))
+  }
+}

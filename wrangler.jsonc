@@ -11,7 +11,8 @@
     "SUPABASE_URL": "https://hcamaaujsveuexunvarm.supabase.co",
     "ROOT_ADMIN_EMAIL": "radhebw@gmail.com",
     "RAZORPAY_KEY_ID": "rzp_test_placeholder",
-    "RAZORPAY_KEY_SECRET": "secret_placeholder"
+    "RAZORPAY_KEY_SECRET": "secret_placeholder",
+    "PUBLIC_R2_URL": "https://cdn.qudu.in"
   },
   // "kv_namespaces": [
   //   {
@@ -22,8 +23,7 @@
   "r2_buckets": [
     {
       "binding": "BUCKET",
-      "bucket_name": "quduhub-storage",
-      "PUBLIC_R2_URL": "https://cdn.qudu.in"
+      "bucket_name": "quduhub-storage"
     }
   ],
   "d1_databases": [
@@ -33,12 +33,15 @@
       "database_id": "66362fa2-2cc9-4820-9ce6-c6af26b6ca01",
       "migrations_dir": "drizzle"
     }
-  ]
+  ],
   // "ai": {
   //   "binding": "AI"
   // },
   // "observability": {
   //   "enabled": true,
   //   "head_sampling_rate": 1
-  // }
+  // },
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  }
 }

@@ -90,19 +90,28 @@ router.get('/subject/:subjectCode', async (c) => {
   try {
     const subjectCode = c.req.param('subjectCode')
 
-    // Fetch Subject Info
-    const subject = await c.env.DB.prepare(
-      'SELECT * FROM subjects WHERE subject_code = ?'
-    ).bind(subjectCode).first()
+    // Fetch Subject Info with Course & University details
+    const subject: any = await c.env.DB.prepare(`
+      SELECT s.*, c.slug as course_slug, c.name as course_name, c.acronym as course_acronym, u.slug as uni_slug, u.name as uni_name, u.acronym as uni_acronym
+      FROM subjects s
+      LEFT JOIN courses c ON s.course_id = c.id
+      LEFT JOIN universities u ON c.university_id = u.id
+      WHERE s.subject_code = ? OR s.id = ?
+    `).bind(subjectCode, subjectCode).first()
 
     if (!subject) return c.json({ success: false, message: 'Subject not found' }, 404)
 
-    // Fetch Chapters using the retrieved subject ID
+    // Fetch Chapters sorted by unit_number and chapter_number
     const { results: chapters } = await c.env.DB.prepare(
-      'SELECT * FROM chapters WHERE subject_id = ? AND is_active = 1 ORDER BY chapter_number ASC'
+      'SELECT * FROM chapters WHERE subject_id = ? AND is_active = 1 ORDER BY COALESCE(unit_number, 1) ASC, chapter_number ASC'
     ).bind(subject.id).all()
 
-    return c.json({ success: true, data: { subject, chapters } })
+    // Fetch Resources sorted by sequence_number
+    const { results: resources } = await c.env.DB.prepare(
+      'SELECT * FROM subject_resources WHERE subject_id = ? ORDER BY sequence_number ASC'
+    ).bind(subject.id).all()
+
+    return c.json({ success: true, data: { subject, chapters, resources } })
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
   }
