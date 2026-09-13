@@ -135,4 +135,4 @@ pnpm run deploy
 ```
 *(This maps to `wrangler deploy` in your `package.json` scripts).*
 
-Once deployed, the backend will scale automatically, routing database reads to the nearest D1 node and caching FTS5 search queries directly in edge RAM worldwide.
+Once deployed, the backend will scale automatically, routing database reads to the nearest D1 node and caching FTS5 search queries directly in edge RAM worldwide.ac
