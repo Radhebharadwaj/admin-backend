@@ -16,6 +16,7 @@ import studentRouter from './routes/student'
 import publicRouter from './routes/public'
 import internalRouter from './routes/internal'
 import searchRouter from './routes/search'
+import razorpayRouter from './routes/razorpay'
 
 export type Bindings = {
   DB: D1Database
@@ -460,6 +461,7 @@ app.route('/api/student', studentRouter)
 app.route('/api/public', publicRouter)
 app.route('/api/internal', internalRouter)
 app.route('/api/search', searchRouter)
+app.route('/api/public/razorpay', razorpayRouter)
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: Bindings, ctx: any) {
