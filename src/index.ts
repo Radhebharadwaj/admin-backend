@@ -15,6 +15,7 @@ import paymentsRouter from './routes/payments'
 import studentRouter from './routes/student'
 import publicRouter from './routes/public'
 import internalRouter from './routes/internal'
+import searchRouter from './routes/search'
 
 export type Bindings = {
   DB: D1Database
@@ -40,40 +41,21 @@ export type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// CORS Middleware (Strict Isolation)
-app.use('/api/*', async (c, next) => {
-  const allowedOrigin = (origin: string | undefined) => {
-    if (!origin) return 'https://qudu.in'
-    if (
-      origin === 'http://localhost:3000' ||
-      origin === 'https://qudu.in' ||
-      origin === 'https://admin.quduhub.com' ||
-      /^https:\/\/qudu(-hub)?.*\.pages\.dev$/.test(origin) ||
-      /^https:\/\/qudu-frontend.*\.vercel\.app$/.test(origin)
-    ) {
-      return origin
-    }
-    return 'https://qudu.in'
-  }
-
-  if (c.req.path.startsWith('/api/public')) {
-    return await cors({
-      origin: allowedOrigin,
-      allowHeaders: ['Content-Type'],
-      allowMethods: ['GET', 'OPTIONS'],
-      maxAge: 600,
-    })(c, next)
-  }
-
-  return await cors({
-    origin: allowedOrigin,
-    allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
-    allowMethods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 600,
-    credentials: true,
-  })(c, next)
-})
+// CORS Middleware (Global)
+app.use('*', cors({
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001', 
+    'https://quduhub.com', 
+    'https://admin.quduhub.com',
+    'https://qudu.in'
+  ],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+  credentials: true,
+}))
 
 // Auth Middleware logic
 const authMiddleware = async (c: any, next: any) => {
@@ -477,6 +459,7 @@ app.route('/api/payments', paymentsRouter)
 app.route('/api/student', studentRouter)
 app.route('/api/public', publicRouter)
 app.route('/api/internal', internalRouter)
+app.route('/api/search', searchRouter)
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: Bindings, ctx: any) {

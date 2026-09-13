@@ -3,6 +3,7 @@ import { Bindings, Variables } from '../index'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { extractMediaKeys } from '../utils/mediaSync'
+import { upsertSearchIndex, deleteSearchIndex, buildSubjectSearchEntity } from '../utils/searchIndex'
 
 const handleZodError = (result: any, c: any) => {
   if (!result.success) {
@@ -112,6 +113,13 @@ router.post('/', zValidator('json', subjectSchema, handleZodError), async (c) =>
       'INSERT INTO subjects (id, subject_code, name, course_id, semester, search_aliases) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(id, subject_code, name, course_id, parseInt(String(semester)), search_aliases || '').run()
 
+    // Sync search index (non-blocking)
+    c.executionCtx.waitUntil((async () => {
+      const course = await c.env.DB.prepare('SELECT name, university_id FROM courses WHERE id = ?').bind(course_id).first()
+      const univ = course ? await c.env.DB.prepare('SELECT name FROM universities WHERE id = ?').bind(course.university_id).first() : null
+      await upsertSearchIndex(c.env.DB, buildSubjectSearchEntity(id, subject_code, name, course?.name as string || '', univ?.name as string || '', search_aliases))
+    })())
+
     return c.json({ success: true, message: 'Subject created', data: { id, subject_code, name, course_id, semester } })
   } catch (error: any) {
     if (error.message?.includes('UNIQUE constraint')) {
@@ -130,6 +138,14 @@ router.patch('/:id', zValidator('json', subjectSchema, handleZodError), async (c
     await c.env.DB.prepare(
       'UPDATE subjects SET subject_code = ?, name = ?, semester = ?, search_aliases = ? WHERE id = ?'
     ).bind(subject_code, name, parseInt(String(semester)), search_aliases || '', id).run()
+
+    // Sync search index (non-blocking)
+    c.executionCtx.waitUntil((async () => {
+      const subject = await c.env.DB.prepare('SELECT course_id FROM subjects WHERE id = ?').bind(id).first()
+      const course = subject ? await c.env.DB.prepare('SELECT name, university_id FROM courses WHERE id = ?').bind(subject.course_id).first() : null
+      const univ = course ? await c.env.DB.prepare('SELECT name FROM universities WHERE id = ?').bind(course.university_id).first() : null
+      await upsertSearchIndex(c.env.DB, buildSubjectSearchEntity(id, subject_code, name, course?.name as string || '', univ?.name as string || '', search_aliases))
+    })())
 
     return c.json({ success: true, message: 'Subject updated' })
   } catch (error: any) {
@@ -171,6 +187,9 @@ router.delete('/:id', async (c) => {
         );
       }
     }
+
+    // Delete search index entry (non-blocking)
+    c.executionCtx.waitUntil(deleteSearchIndex(c.env.DB, id))
 
     await c.env.DB.prepare('PRAGMA foreign_keys = ON').run()
     await c.env.DB.prepare('DELETE FROM subjects WHERE id = ?').bind(id).run()

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
+import { upsertSearchIndex, deleteSearchIndex, deleteCascadeSearchIndex, buildUniversitySearchEntity } from '../utils/searchIndex'
 
 const handleZodError = (result: any, c: any) => {
   if (!result.success) {
@@ -56,6 +57,11 @@ router.post('/', zValidator('json', universitySchema, handleZodError), async (c)
       'INSERT INTO universities (id, name, slug, acronym, website_url, logo_url, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)'
     ).bind(id, name, slug, acronym || null, website_url || null, logo_url || null, search_aliases || '').run()
 
+    // Sync search index (non-blocking)
+    c.executionCtx.waitUntil(
+      upsertSearchIndex(c.env.DB, buildUniversitySearchEntity(id, name, acronym, search_aliases))
+    )
+
     return c.json({ success: true, message: 'University created', data: { id, name, slug, acronym } })
   } catch (error: any) {
     if (error.message?.includes('UNIQUE constraint')) {
@@ -75,6 +81,11 @@ router.patch('/:id', zValidator('json', universitySchema, handleZodError), async
       'UPDATE universities SET name = ?, slug = ?, acronym = ?, website_url = ?, logo_url = ?, search_aliases = ?, is_active = ? WHERE id = ?'
     ).bind(name, slug, acronym || null, website_url || null, logo_url || null, search_aliases || '', is_active ?? 1, id).run()
 
+    // Sync search index (non-blocking)
+    c.executionCtx.waitUntil(
+      upsertSearchIndex(c.env.DB, buildUniversitySearchEntity(id, name, acronym, search_aliases))
+    )
+
     return c.json({ success: true, message: 'University updated' })
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
@@ -85,6 +96,19 @@ router.patch('/:id', zValidator('json', universitySchema, handleZodError), async
 router.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+
+    // Cascade-delete search index entries for all children BEFORE the DB cascade
+    c.executionCtx.waitUntil((async () => {
+      // Delete subjects under courses of this university
+      await deleteCascadeSearchIndex(c.env.DB,
+        'SELECT s.id FROM subjects s JOIN courses c ON s.course_id = c.id WHERE c.university_id = ?', id)
+      // Delete courses under this university
+      await deleteCascadeSearchIndex(c.env.DB,
+        'SELECT id FROM courses WHERE university_id = ?', id)
+      // Delete the university itself
+      await deleteSearchIndex(c.env.DB, id)
+    })())
+
     await c.env.DB.prepare('PRAGMA foreign_keys = ON').run()
     await c.env.DB.prepare('DELETE FROM universities WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'University and all related data deleted' })

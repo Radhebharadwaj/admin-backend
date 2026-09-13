@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
+import { upsertSearchIndex, deleteSearchIndex, deleteCascadeSearchIndex, buildCourseSearchEntity } from '../utils/searchIndex'
 
 const handleZodError = (result: any, c: any) => {
   if (!result.success) {
@@ -64,6 +65,12 @@ router.post('/', zValidator('json', courseSchema, handleZodError), async (c) => 
       'INSERT INTO courses (id, university_id, name, slug, acronym, duration_years, total_semesters, search_aliases, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)'
     ).bind(id, university_id, name, slug, acronym || null, duration_years || null, total_semesters, search_aliases || '').run()
 
+    // Sync search index (non-blocking) — fetch parent university name for subtitle
+    c.executionCtx.waitUntil((async () => {
+      const univ = await c.env.DB.prepare('SELECT name FROM universities WHERE id = ?').bind(university_id).first()
+      await upsertSearchIndex(c.env.DB, buildCourseSearchEntity(id, name, acronym, univ?.name as string || '', search_aliases))
+    })())
+
     return c.json({ success: true, message: 'Course created', data: { id, name, slug, university_id } })
   } catch (error: any) {
     if (error.message?.includes('UNIQUE constraint')) {
@@ -83,6 +90,13 @@ router.patch('/:id', zValidator('json', courseSchema, handleZodError), async (c)
       'UPDATE courses SET name = ?, slug = ?, acronym = ?, duration_years = ?, total_semesters = ?, search_aliases = ?, is_active = ? WHERE id = ?'
     ).bind(name, slug, acronym || null, duration_years || null, total_semesters, search_aliases || '', is_active ?? 1, id).run()
 
+    // Sync search index (non-blocking)
+    c.executionCtx.waitUntil((async () => {
+      const course = await c.env.DB.prepare('SELECT university_id FROM courses WHERE id = ?').bind(id).first()
+      const univ = course ? await c.env.DB.prepare('SELECT name FROM universities WHERE id = ?').bind(course.university_id).first() : null
+      await upsertSearchIndex(c.env.DB, buildCourseSearchEntity(id, name, acronym, univ?.name as string || '', search_aliases))
+    })())
+
     return c.json({ success: true, message: 'Course updated' })
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
@@ -93,6 +107,13 @@ router.patch('/:id', zValidator('json', courseSchema, handleZodError), async (c)
 router.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+
+    // Cascade-delete search index entries for all children BEFORE the DB cascade
+    c.executionCtx.waitUntil((async () => {
+      await deleteCascadeSearchIndex(c.env.DB, 'SELECT id FROM subjects WHERE course_id = ?', id)
+      await deleteSearchIndex(c.env.DB, id)
+    })())
+
     await c.env.DB.prepare('PRAGMA foreign_keys = ON').run()
     await c.env.DB.prepare('DELETE FROM courses WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Course and all related data deleted' })
