@@ -148,6 +148,13 @@ router.post('/contributor/create-order', async (c) => {
   const amount_in_paise = amount * 100;
   const contributorId = crypto.randomUUID();
 
+  const bodyPayload = {
+    amount: amount_in_paise,
+    currency: 'INR',
+    // Generate a short unique receipt ID
+    receipt: `rcpt_${crypto.randomUUID().split('-')[0]}` 
+  };
+
   // 1. Fetch to Razorpay (Edge compatible)
   const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
     method: 'POST',
@@ -155,13 +162,18 @@ router.post('/contributor/create-order', async (c) => {
       'Content-Type': 'application/json',
       'Authorization': `Basic ${btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`)}`
     },
-    body: JSON.stringify({ amount: amount_in_paise, currency: 'INR', receipt: `receipt_${contributorId.substring(0, 10)}` })
+    body: JSON.stringify(bodyPayload)
   });
   const order = await rzpRes.json() as any;
 
   if (!rzpRes.ok) {
-    console.error("RAZORPAY ERROR:", order); // 🔥 CRITICAL FOR DEBUGGING
-    return c.json({ error: 'Razorpay API rejected the request', details: order }, 400);
+    console.error("RAZORPAY RAW ERROR:", order);
+    
+    // Send Razorpay's exact complaint directly to the frontend
+    return c.json({ 
+      error: order?.error?.description || 'Razorpay API rejected the request', 
+      details: order 
+    }, 400);
   }
 
   // 2. Insert unverified record into D1 via Drizzle
