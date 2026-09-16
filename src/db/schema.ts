@@ -200,5 +200,7 @@ export const contributors = sqliteTable('contributors', {
   razorpay_order_id: text('razorpay_order_id'),
   razorpay_payment_id: text('razorpay_payment_id'),
   is_verified: integer('is_verified', { mode: 'boolean' }).default(false),
+  // 🔥 NEW: Flag to separate test environment data from production data
+  is_test: integer('is_test', { mode: 'boolean' }).default(false),
   created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });

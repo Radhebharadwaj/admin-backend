@@ -160,6 +160,9 @@ router.post('/contributor/create-order', async (c) => {
   const cleanKeyId = keyId.trim();
   const cleanKeySecret = keySecret.trim();
 
+  // 🔥 NEW: Auto-detect if we are using Razorpay Test Mode
+  const isTestMode = cleanKeyId.startsWith('rzp_test');
+
   const bodyPayload = {
     amount: amount_in_paise,
     currency: 'INR',
@@ -196,7 +199,8 @@ router.post('/contributor/create-order', async (c) => {
     github_or_twitter_link,
     amount_in_paise,
     razorpay_order_id: order.id,
-    is_verified: false
+    is_verified: false,
+    is_test: isTestMode // Save the auto-detected flag
   });
 
   return c.json({ orderId: order.id, amount: amount_in_paise, contributorId });
