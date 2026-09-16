@@ -148,6 +148,18 @@ router.post('/contributor/create-order', async (c) => {
   const amount_in_paise = amount * 100;
   const contributorId = crypto.randomUUID();
 
+  const keyId = c.env.RAZORPAY_KEY_ID;
+  const keySecret = c.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    console.error("MISSING API KEYS IN CLOUDFLARE ENV");
+    return c.json({ error: "Server Configuration Error: Missing Payment Gateway Keys" }, 500);
+  }
+
+  // 2. Clean the Keys (Strip accidental whitespace)
+  const cleanKeyId = keyId.trim();
+  const cleanKeySecret = keySecret.trim();
+
   const bodyPayload = {
     amount: amount_in_paise,
     currency: 'INR',
@@ -155,12 +167,12 @@ router.post('/contributor/create-order', async (c) => {
     receipt: `rcpt_${crypto.randomUUID().split('-')[0]}` 
   };
 
-  // 1. Fetch to Razorpay (Edge compatible)
+  // 3. Fetch to Razorpay using the cleaned keys
   const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Basic ${btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`)}`
+      'Authorization': `Basic ${btoa(`${cleanKeyId}:${cleanKeySecret}`)}`
     },
     body: JSON.stringify(bodyPayload)
   });
