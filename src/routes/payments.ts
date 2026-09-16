@@ -155,7 +155,7 @@ router.post('/contributor/create-order', async (c) => {
       'Content-Type': 'application/json',
       'Authorization': `Basic ${btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`)}`
     },
-    body: JSON.stringify({ amount: amount_in_paise, currency: 'INR' })
+    body: JSON.stringify({ amount: amount_in_paise, currency: 'INR', receipt: `receipt_${contributorId.substring(0, 10)}` })
   });
   const order = await rzpRes.json() as any;
 
