@@ -10,8 +10,8 @@
   "vars": {
     "SUPABASE_URL": "https://hcamaaujsveuexunvarm.supabase.co",
     "ROOT_ADMIN_EMAIL": "radhebw@gmail.com",
-    "RAZORPAY_KEY_ID": "rzp_test_placeholder",
-    "RAZORPAY_KEY_SECRET": "secret_placeholder",
+    "RAZORPAY_KEY_ID": "rzp_test_TcrGhPVMZmaKiC",
+    "RAZORPAY_KEY_SECRET": "yIVmTqK3D0izB4I71YuwY2U9",
     "PUBLIC_R2_URL": "https://cdn.qudu.in"
   },
   // "kv_namespaces": [
