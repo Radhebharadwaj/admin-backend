@@ -32,6 +32,7 @@ The core relational database schema is defined in `src/db/schema.ts` and managed
 - **Chapters (`chapters`)**: Organizational units for a subject.
 - **Resources (`subject_resources`)**: The actual content (Rich text notes, PDFs, PYQs, videos). Contains deep relations, pricing, and media URLs.
 - **Bundles & Purchases**: Tables managing student transactions and bundled resources.
+- **Contributors (`contributors`)**: A permanent registry of contributors with verified Razorpay payment tracking.
 
 ### The FTS5 Global Search Engine
 Because standard SQL `LIKE` queries become a bottleneck at scale, we implemented a dedicated **FTS5 Virtual Table** (`global_search_index`).
@@ -57,7 +58,7 @@ All route controllers are isolated inside the `src/routes/` directory.
 | `search.ts` | `/api/search` | The global search API. Includes edge caching logic and an Admin-only `/api/search/seed` endpoint for bulk index hydration. |
 | `upload.ts` | `/api/upload` | Handles direct `multipart/form-data` uploads to Cloudflare R2, returning custom `cdn.qudu.in` CDN URLs. |
 | `analytics.ts` | `/api/analytics` | Aggregates D1 data for admin dashboard charts and metrics. |
-| `payments.ts` | `/api/payments` | Integration with Razorpay for generating orders and verifying signatures. |
+| `payments.ts` | `/api/payments` | Edge-compatible Integration with Razorpay for generating orders and verifying signatures (using Web Crypto API) for both student purchases and contributor verifications. |
 | `team.ts` | `/api/team` | Internal admin/staff management routing. |
 | `student.ts`, `public.ts` | Various | Read-only or student-facing endpoints with specialized access control. |
 

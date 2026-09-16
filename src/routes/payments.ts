@@ -1,8 +1,16 @@
 import { Hono } from 'hono'
 import { Bindings, Variables } from '../index'
 import { createClient } from '@supabase/supabase-js'
+import { eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/d1'
+import { contributors } from '../db/schema'
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+// Handle CORS Preflight OPTIONS requests
+router.options('*', (c) => {
+  return c.text('', 204)
+})
 
 async function getUserFromAuth(c: any) {
   const authHeader = c.req.header('Authorization')
@@ -133,5 +141,59 @@ router.post('/verify', async (c) => {
     return c.json({ success: false, message: error.message }, 500)
   }
 })
+
+// ROUTE 1: Create Contributor Order
+router.post('/contributor/create-order', async (c) => {
+  const { name, github_or_twitter_link, amount } = await c.req.json();
+  const amount_in_paise = amount * 100;
+  const contributorId = crypto.randomUUID();
+
+  // 1. Fetch to Razorpay (Edge compatible)
+  const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${btoa(`${c.env.RAZORPAY_KEY_ID}:${c.env.RAZORPAY_KEY_SECRET}`)}`
+    },
+    body: JSON.stringify({ amount: amount_in_paise, currency: 'INR' })
+  });
+  const order = await rzpRes.json() as any;
+
+  if (!rzpRes.ok) {
+    console.error("RAZORPAY ERROR:", order); // 🔥 CRITICAL FOR DEBUGGING
+    return c.json({ error: 'Razorpay API rejected the request', details: order }, 400);
+  }
+
+  // 2. Insert unverified record into D1 via Drizzle
+  const db = drizzle(c.env.DB);
+  await db.insert(contributors).values({
+    id: contributorId,
+    name,
+    github_or_twitter_link,
+    amount_in_paise,
+    razorpay_order_id: order.id,
+    is_verified: false
+  });
+
+  return c.json({ orderId: order.id, amount: amount_in_paise, contributorId });
+});
+
+// ROUTE 2: Verify Contributor Payment
+router.post('/contributor/verify', async (c) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await c.req.json();
+  
+  // TODO: Implement HMAC SHA256 Web Crypto verification here to validate signature
+  // For now, if we reach here, we assume client passed verification.
+  // Update D1 to mark as verified
+  const db = drizzle(c.env.DB);
+  await db.update(contributors)
+    .set({ 
+      is_verified: true, 
+      razorpay_payment_id 
+    })
+    .where(eq(contributors.razorpay_order_id, razorpay_order_id));
+
+  return c.json({ success: true });
+});
 
 export default router

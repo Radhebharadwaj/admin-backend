@@ -193,12 +193,12 @@ export const purchaseItems = sqliteTable('purchase_items', {
 // 6. CONTRIBUTORS (PERMANENT REGISTRY)
 // --------------------------------------------------------
 export const contributors = sqliteTable('contributors', {
-    id: text('id').primaryKey().$defaultFn(generateId),
-    name: text('name').notNull(),
-    githubOrTwitterLink: text('github_or_twitter_link'),
-    amountInPaise: integer('amount_in_paise').notNull(),
-    razorpayOrderId: text('razorpay_order_id').notNull().unique(),
-    razorpayPaymentId: text('razorpay_payment_id').unique(),
-    isVerified: integer('is_verified').default(0).notNull(),
-    createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  github_or_twitter_link: text('github_or_twitter_link'),
+  amount_in_paise: integer('amount_in_paise').notNull(),
+  razorpay_order_id: text('razorpay_order_id'),
+  razorpay_payment_id: text('razorpay_payment_id'),
+  is_verified: integer('is_verified', { mode: 'boolean' }).default(false),
+  created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });

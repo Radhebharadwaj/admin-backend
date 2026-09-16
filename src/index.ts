@@ -42,16 +42,10 @@ export type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// CORS Middleware (Global)
-app.use('*', cors({
-  origin: (origin) => {
-    return origin || '*';
-  },
-  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+app.use('/api/*', cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', '*'], // Explicitly allow dev frontend
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
-  exposeHeaders: ['Content-Length'],
-  maxAge: 600,
-  credentials: true,
 }))
 
 // Auth Middleware logic
