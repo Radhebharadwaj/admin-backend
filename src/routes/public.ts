@@ -73,11 +73,11 @@ router.get('/catalog/:university/:course/:semester', async (c) => {
       FROM subjects s
       JOIN courses c ON s.course_id = c.id
       JOIN universities u ON c.university_id = u.id
-      WHERE (u.slug = ? OR LOWER(u.acronym) = LOWER(?))
-        AND (c.slug = ? OR LOWER(c.acronym) = LOWER(?))
+      WHERE (? = 'unknown' OR u.id = ? OR u.slug = ? OR LOWER(u.acronym) = LOWER(?))
+        AND (c.id = ? OR c.slug = ? OR LOWER(c.acronym) = LOWER(?))
         AND s.semester = ?
       ORDER BY s.subject_code ASC
-    `).bind(uniSlug, uniSlug, courseSlug, courseSlug, semester).all()
+    `).bind(uniSlug, uniSlug, uniSlug, uniSlug, courseSlug, courseSlug, courseSlug, semester).all()
 
     return c.json({ success: true, data: results })
   } catch (error: any) {
@@ -137,9 +137,9 @@ router.get('/universities/:univSlug/courses', async (c) => {
       SELECT c.id, c.name, c.acronym, c.slug, c.duration_years, c.search_aliases
       FROM courses c 
       INNER JOIN universities u ON c.university_id = u.id 
-      WHERE (u.slug = ? OR LOWER(u.acronym) = LOWER(?)) AND c.is_active = 1 
+      WHERE (u.id = ? OR u.slug = ? OR LOWER(u.acronym) = LOWER(?)) AND c.is_active = 1 
       ORDER BY c.name ASC
-    `).bind(univSlug, univSlug).all()
+    `).bind(univSlug, univSlug, univSlug).all()
     
     return c.json(results)
   } catch (error: any) {
@@ -152,8 +152,8 @@ router.get('/courses/:courseSlug/semesters', async (c) => {
   try {
     const courseSlug = c.req.param('courseSlug')
     const course: any = await c.env.DB.prepare(
-      'SELECT total_semesters FROM courses WHERE (slug = ? OR LOWER(acronym) = LOWER(?)) AND is_active = 1'
-    ).bind(courseSlug, courseSlug).first()
+      'SELECT total_semesters FROM courses WHERE (id = ? OR slug = ? OR LOWER(acronym) = LOWER(?)) AND is_active = 1'
+    ).bind(courseSlug, courseSlug, courseSlug).first()
     
     if (!course) {
       return c.json([])

@@ -31,6 +31,7 @@ router.get('/', async (c) => {
     ).all()
     return c.json({ success: true, data: results })
   } catch (error: any) {
+    console.error("SQL Error in GET /api/resources:", error);
     return c.json({ success: false, message: error.message }, 500)
   }
 })
