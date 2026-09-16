@@ -8,6 +8,13 @@
       "when": 1789067775225,
       "tag": "0000_skinny_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789592132855,
+      "tag": "0001_demonic_mother_askani",
+      "breakpoints": true
     }
   ]
 }
