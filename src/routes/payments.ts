@@ -9,7 +9,7 @@ const router = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // Handle CORS Preflight OPTIONS requests
 router.options('*', (c) => {
-  return c.text('', 204)
+  return c.body(null, 204)
 })
 
 async function getUserFromAuth(c: any) {
