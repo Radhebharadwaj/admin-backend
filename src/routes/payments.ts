@@ -144,66 +144,76 @@ router.post('/verify', async (c) => {
 
 // ROUTE 1: Create Contributor Order
 router.post('/contributor/create-order', async (c) => {
-  const { name, github_or_twitter_link, amount } = await c.req.json();
-  const amount_in_paise = amount * 100;
-  const contributorId = crypto.randomUUID();
+  try {
+    const { name, github_or_twitter_link, amount } = await c.req.json();
+    const amount_in_paise = Number(amount) * 100;
+    const contributorId = crypto.randomUUID();
 
-  const keyId = c.env.RAZORPAY_KEY_ID;
-  const keySecret = c.env.RAZORPAY_KEY_SECRET;
+    const keyId = c.env.RAZORPAY_KEY_ID;
+    const keySecret = c.env.RAZORPAY_KEY_SECRET;
 
-  if (!keyId || !keySecret) {
-    console.error("MISSING API KEYS IN CLOUDFLARE ENV");
-    return c.json({ error: "Server Configuration Error: Missing Payment Gateway Keys" }, 500);
+    if (!keyId || !keySecret) {
+      console.error("MISSING API KEYS IN CLOUDFLARE ENV");
+      return c.json({ error: "Server Configuration Error: Missing Payment Gateway Keys" }, 500);
+    }
+
+    // 2. Clean the Keys (Strip accidental whitespace)
+    const cleanKeyId = keyId.trim();
+    const cleanKeySecret = keySecret.trim();
+
+    // 🔥 NEW: Auto-detect if we are using Razorpay Test Mode
+    const isTestMode = cleanKeyId.startsWith('rzp_test');
+
+    const bodyPayload = {
+      amount: amount_in_paise,
+      currency: 'INR',
+      // Generate a short unique receipt ID
+      receipt: `rcpt_${crypto.randomUUID().split('-')[0]}` 
+    };
+
+    // 3. Fetch to Razorpay using the cleaned keys
+    const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${btoa(`${cleanKeyId}:${cleanKeySecret}`)}`
+      },
+      body: JSON.stringify(bodyPayload)
+    });
+    const order = await rzpRes.json() as any;
+
+    if (!rzpRes.ok) {
+      console.error("RAZORPAY RAW ERROR:", order);
+      
+      // Send Razorpay's exact complaint directly to the frontend
+      return c.json({ 
+        error: order?.error?.description || 'Razorpay API rejected the request', 
+        details: order 
+      }, 400);
+    }
+
+    // 2. Insert unverified record into D1 via Drizzle
+    try {
+      const db = drizzle(c.env.DB);
+      await db.insert(contributors).values({
+        id: contributorId,
+        name,
+        github_or_twitter_link,
+        amount_in_paise,
+        razorpay_order_id: order.id,
+        is_verified: false,
+        is_test: isTestMode // Save the auto-detected flag
+      });
+    } catch (dbError: any) {
+      console.error("D1 DATABASE CRASH:", dbError);
+      return c.json({ error: "Database Insert Failed", details: dbError.message }, 500);
+    }
+
+    return c.json({ orderId: order.id, amount: amount_in_paise, contributorId });
+  } catch (globalError: any) {
+    console.error("UNKNOWN FATAL CRASH:", globalError);
+    return c.json({ error: "Internal Server Error", details: globalError.message }, 500);
   }
-
-  // 2. Clean the Keys (Strip accidental whitespace)
-  const cleanKeyId = keyId.trim();
-  const cleanKeySecret = keySecret.trim();
-
-  // 🔥 NEW: Auto-detect if we are using Razorpay Test Mode
-  const isTestMode = cleanKeyId.startsWith('rzp_test');
-
-  const bodyPayload = {
-    amount: amount_in_paise,
-    currency: 'INR',
-    // Generate a short unique receipt ID
-    receipt: `rcpt_${crypto.randomUUID().split('-')[0]}` 
-  };
-
-  // 3. Fetch to Razorpay using the cleaned keys
-  const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${btoa(`${cleanKeyId}:${cleanKeySecret}`)}`
-    },
-    body: JSON.stringify(bodyPayload)
-  });
-  const order = await rzpRes.json() as any;
-
-  if (!rzpRes.ok) {
-    console.error("RAZORPAY RAW ERROR:", order);
-    
-    // Send Razorpay's exact complaint directly to the frontend
-    return c.json({ 
-      error: order?.error?.description || 'Razorpay API rejected the request', 
-      details: order 
-    }, 400);
-  }
-
-  // 2. Insert unverified record into D1 via Drizzle
-  const db = drizzle(c.env.DB);
-  await db.insert(contributors).values({
-    id: contributorId,
-    name,
-    github_or_twitter_link,
-    amount_in_paise,
-    razorpay_order_id: order.id,
-    is_verified: false,
-    is_test: isTestMode // Save the auto-detected flag
-  });
-
-  return c.json({ orderId: order.id, amount: amount_in_paise, contributorId });
 });
 
 // ROUTE 2: Verify Contributor Payment
